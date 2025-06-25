@@ -1017,10 +1017,17 @@ class InboundTransfersModel {
 
             var notificationError = false;
 
-
+            try
+            {
             const res = await this._backendRequests.putTransfersNotification(this.data, transferId);
-            console.log("res: ", res);
+            console.log("res between try: ", res);
+            }
+            catch
+            {
+                notificationError=true;
+            }
 
+            console.log("res after try catch: ", res);
             console.log("notificationError: ", notificationError);
 
             if (notificationError) {
@@ -1030,6 +1037,7 @@ class InboundTransfersModel {
             }
             else {
                 
+                 console.log("res between else: ", res);
                 this.data.currentState = SDKStateEnum.COMPLETED;
                
                 this.data.homeTransactionId = res.homeTransactionId;
