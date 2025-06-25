@@ -1033,6 +1033,7 @@ class InboundTransfersModel {
 
             if(notificationError) {
                 this.data.currentState = SDKStateEnum.ERROR_OCCURRED;
+                this.data.lastError = 'Problem occurred while sending notification to Payee backend';
             }
             else{
               this.data.currentState = SDKStateEnum.COMPLETED;
