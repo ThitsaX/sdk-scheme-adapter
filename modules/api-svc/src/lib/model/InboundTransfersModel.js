@@ -1015,23 +1015,36 @@ class InboundTransfersModel {
 
             await this._save();
 
-            const res = await this._backendRequests.putTransfersNotification(this.data, transferId);
+            var notificationError = false;
 
-            console.log("res ", res);
+            try {
 
-            this.data.currentState = SDKStateEnum.COMPLETED;
-            this.data.homeTransactionId = res.homeTransactionId;
+                const res = await this._backendRequests.putTransfersNotification(this.data, transferId);
+                console.log("res ", res);
+
+            }catch(err) {
+
+                notificationError = true;
+                console.log("err ", err);
+
+            }
+
+            console.log("notificationError ", notificationError);
+
+            if(notificationError) {
+                this.data.currentState = SDKStateEnum.ERROR_OCCURRED;
+            }
+            else{
+              this.data.currentState = SDKStateEnum.COMPLETED;
+              this.data.homeTransactionId = res.homeTransactionId;
+            }
 
             await this._save();
 
             return res;
+
         } catch (err) {
-
             this._logger.isErrorEnabled && this._logger.push({ err, transferId }).error(`Error notifying backend of final transfer state equal to: ${body.transferState}`);
-
-            this.data.currentState = SDKStateEnum.ABORTED;
-            await this._save();
-
         }
     }
 
