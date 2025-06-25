@@ -1030,17 +1030,23 @@ class InboundTransfersModel {
             }
 
             console.log("notificationError ", notificationError);
+            
 
             if(notificationError) {
                 this.data.currentState = SDKStateEnum.ERROR_OCCURRED;
                 this.data.lastError = 'Problem occurred while sending notification to Payee backend';
+               
             }
             else{
-              this.data.currentState = SDKStateEnum.COMPLETED;
+               console.log("before currentstate", this.data);
+              this.data.currentState = SDKStateEnum.COMMITTED;
+               console.log("after currentstate", this.data);
               this.data.homeTransactionId = res.homeTransactionId;
+              console.log("after hoemtransactionId", this.data);
             }
 
             await this._save();
+            console.log("after save", this.data);
 
             return res;
 
