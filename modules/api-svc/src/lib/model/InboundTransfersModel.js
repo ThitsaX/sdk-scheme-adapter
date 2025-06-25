@@ -1024,18 +1024,16 @@ class InboundTransfersModel {
 
                 this.data.homeTransactionId = res.homeTransactionId;
 
+                await this._save();
                 console.log("res between try: ", res);
             }
             catch (err) {
 
                 this.data.currentState = SDKStateEnum.ERROR_OCCURRED;
                 this.data.lastError = 'Problem occurred while sending notification to Payee backend';
+                await this._save();
             }
 
-
-
-            await this._save();
-            console.log("after save", this.data);
 
             return res;
 
