@@ -1019,9 +1019,19 @@ class InboundTransfersModel {
 
             console.log("res ", res);
 
+            this.data.currentState = SDKStateEnum.COMPLETED;
+            this.data.homeTransactionId = res.homeTransactionId;
+
+            await this._save();
+
             return res;
         } catch (err) {
+
             this._logger.isErrorEnabled && this._logger.push({ err, transferId }).error(`Error notifying backend of final transfer state equal to: ${body.transferState}`);
+
+            this.data.currentState = SDKStateEnum.ABORTED;
+            await this._save();
+
         }
     }
 
