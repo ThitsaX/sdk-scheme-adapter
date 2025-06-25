@@ -729,8 +729,12 @@ const patchTransfersById = async (ctx) => {
     // use the transfers model to execute asynchronous stages with the switch
     const model = createInboundTransfersModel(ctx);
 
+    console.log('patchTransfersById -> model', model);
+
     // sends notification to the payee fsp
     const response = await model.sendNotificationToPayee(req.data, idValue);
+
+    console.log('patchTransfersById -> response', response);
 
     // log the result
     ctx.state.logger.isDebugEnabled && ctx.state.logger.push({response}).

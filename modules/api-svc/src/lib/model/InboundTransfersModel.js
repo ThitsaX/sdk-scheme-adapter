@@ -996,6 +996,8 @@ class InboundTransfersModel {
             // tag the final notification body on to the state
             this.data.finalNotification = body;
 
+            console.log("this.data ", this.data);
+
             if(body.transferState === FSPIOPTransferStateEnum.COMMITTED) {
                 // if the transfer was successful in the switch, set the overall transfer state to COMPLETED
                 this.data.currentState = SDKStateEnum.COMPLETED;
