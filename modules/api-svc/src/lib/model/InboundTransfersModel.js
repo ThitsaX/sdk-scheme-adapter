@@ -992,7 +992,7 @@ class InboundTransfersModel {
             if (!this.data) {
                 this.data = {};
             }
-Ò
+
             // tag the final notification body on to the state
             this.data.finalNotification = body;
 
@@ -1032,16 +1032,17 @@ class InboundTransfersModel {
 
             }
             else {
-              
-                this.data.currentState = SDKStateEnum.COMPLETED;
-              
+                console.log("before currentstate", this.data);
+                this.data.currentState = SDKStateEnum.COMMITTED;
+                console.log("after currentstate", this.data);
+                console.log("after hoemtransactionId", res);
                 this.data.homeTransactionId = res.homeTransactionId;
 
-               
+                console.log("after hoemtransactionId", this.data);
             }
 
             await this._save();
-         
+            console.log("after save", this.data);
 
             return res;
 
