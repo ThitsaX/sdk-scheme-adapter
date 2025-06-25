@@ -1017,33 +1017,22 @@ class InboundTransfersModel {
 
             var notificationError = false;
 
-            try
-            {
-            const res = await this._backendRequests.putTransfersNotification(this.data, transferId);
-            console.log("res between try: ", res);
-            }
-            catch
-            {
-                notificationError=true;
-            }
+            try {
+                const res = await this._backendRequests.putTransfersNotification(this.data, transferId);
 
-            console.log("res after try catch: ", res);
-            console.log("notificationError: ", notificationError);
-
-            if (notificationError) {
-                this.data.currentState = SDKStateEnum.ERROR_OCCURRED;
-                this.data.lastError = 'Problem occurred while sending notification to Payee backend';
-
-            }
-            else {
-                
-                 console.log("res between else: ", res);
                 this.data.currentState = SDKStateEnum.COMPLETED;
-               
+
                 this.data.homeTransactionId = res.homeTransactionId;
 
-                console.log("after hoemtransactionId", this.data);
+                console.log("res between try: ", res);
             }
+            catch (err) {
+
+                this.data.currentState = SDKStateEnum.ERROR_OCCURRED;
+                this.data.lastError = 'Problem occurred while sending notification to Payee backend';
+            }
+
+
 
             await this._save();
             console.log("after save", this.data);
@@ -1051,6 +1040,7 @@ class InboundTransfersModel {
             return res;
 
         } catch (err) {
+
             this._logger.isErrorEnabled && this._logger.push({ err, transferId }).error(`Error notifying backend of final transfer state equal to: ${body.transferState}`);
         }
     }
