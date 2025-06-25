@@ -1016,6 +1016,9 @@ class InboundTransfersModel {
             await this._save();
 
             const res = await this._backendRequests.putTransfersNotification(this.data, transferId);
+
+            console.log("res ", res);
+
             return res;
         } catch (err) {
             this._logger.isErrorEnabled && this._logger.push({ err, transferId }).error(`Error notifying backend of final transfer state equal to: ${body.transferState}`);
