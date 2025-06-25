@@ -1323,7 +1323,7 @@ class OutboundTransfersModel {
                 // first remove any merge keys that we do not want to allow to be changed
                 // note that we could do this in the swagger also. this is to put a responsibility
                 // on this model to defend itself.
-                const permittedMergeKeys = ['acceptParty', 'acceptConversion', 'acceptQuote', 'acceptQuoteOrConversion', 'amount', 'to'];
+                const permittedMergeKeys = ['homeTransactionId', 'acceptParty', 'acceptConversion', 'acceptQuote', 'acceptQuoteOrConversion', 'amount', 'to'];
                 Object.keys(mergeData).forEach(k => {
                     if(permittedMergeKeys.indexOf(k) === -1) {
                         delete mergeData[k]; // try to avoid mutation of parameters
