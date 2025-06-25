@@ -1019,12 +1019,9 @@ class InboundTransfersModel {
 
 
             const res = await this._backendRequests.putTransfersNotification(this.data, transferId);
-            console.log("res ", res);
+            console.log("res: ", res);
 
-
-
-            console.log("notificationError ", notificationError);
-
+            console.log("notificationError: ", notificationError);
 
             if (notificationError) {
                 this.data.currentState = SDKStateEnum.ERROR_OCCURRED;
@@ -1032,10 +1029,9 @@ class InboundTransfersModel {
 
             }
             else {
-                console.log("before currentstate", this.data);
-                this.data.currentState = SDKStateEnum.COMMITTED;
-                console.log("after currentstate", this.data);
-                console.log("after hoemtransactionId", res);
+                
+                this.data.currentState = SDKStateEnum.COMPLETED;
+               
                 this.data.homeTransactionId = res.homeTransactionId;
 
                 console.log("after hoemtransactionId", this.data);
