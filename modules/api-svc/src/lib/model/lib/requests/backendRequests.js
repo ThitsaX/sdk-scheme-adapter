@@ -273,7 +273,7 @@ class BackendRequests {
 
             const data = (res.headers['content-length'] === '0' || res.statusCode === 204)
                 ? null
-                : res.data;
+                : (typeof res.data === 'string' ? JSON.parse(res.data) : res.data);
             this.logger.isVerboseEnabled && this.logger.push({ data }).verbose('Received HTTP response data');
             return data;
         } catch (err) {
