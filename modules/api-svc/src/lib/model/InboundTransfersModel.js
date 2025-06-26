@@ -470,9 +470,7 @@ class InboundTransfersModel {
             this._logger.isVerboseEnabled && this._logger.verbose(`Transfer accepted by backend returning homeTransactionId: ${response.homeTransactionId} for mojaloop transferId: ${prepareRequest.transferId}`);
             this.data.homeTransactionId = response.homeTransactionId;
 
-            if (response.extensionList) {
-                this.data.extensionList = response.extensionList;
-            }
+          
 
             // create a  mojaloop transfer fulfil response
             const mojaloopResponse = {
