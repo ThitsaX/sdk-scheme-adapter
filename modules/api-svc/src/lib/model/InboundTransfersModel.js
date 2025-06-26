@@ -200,6 +200,8 @@ class InboundTransfersModel {
      * the result
      */
     async quoteRequest(request, sourceFspId, headers = {}) {
+        
+       console.log("quoteRequest:",request);
         const quoteRequest = request.body;
 
         // keep track of our state.
@@ -1018,6 +1020,7 @@ class InboundTransfersModel {
             var notificationError = false;
 
             try {
+                console.log("putTransferData:",this.data);
                 const res = await this._backendRequests.putTransfersNotification(this.data, transferId);
 
                 this.data.currentState = SDKStateEnum.COMPLETED;
@@ -1033,6 +1036,7 @@ class InboundTransfersModel {
                 this.data.lastError = 'Problem occurred while sending notification to Payee backend';
                 await this._save();
             }
+     
 
 
             return res;
