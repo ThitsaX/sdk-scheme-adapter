@@ -270,6 +270,7 @@ class BackendRequests {
         try {
             this.logger.isVerboseEnabled && this.logger.push({ reqOptions }).verbose(`Executing HTTP ${reqOptions?.method}...`);
             const res = await this.requester.sendRequest({ ...reqOptions, agent: this.agent });
+            console.log("res:",res);
 
             const data = (res.headers['content-length'] === '0' || res.statusCode === 204)
                 ? null
