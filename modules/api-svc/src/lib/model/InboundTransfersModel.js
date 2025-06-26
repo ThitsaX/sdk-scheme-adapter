@@ -200,8 +200,9 @@ class InboundTransfersModel {
      * the result
      */
     async quoteRequest(request, sourceFspId, headers = {}) {
-        
-       console.log("quoteRequest:",request);
+
+        console.log("quoteRequest:", request);
+        console.log("quoteRequest payee:", request.body.payee);
         const quoteRequest = request.body;
 
         // keep track of our state.
@@ -459,6 +460,8 @@ class InboundTransfersModel {
             // make a call to the backend to inform it of the incoming transfer
             const response = await this._backendRequests.postTransfers(internalForm);
 
+            console.log("response from cc:",response);
+
             if (!response) {
                 // make an error callback to the source fsp
                 return 'No response from backend';
@@ -466,6 +469,10 @@ class InboundTransfersModel {
 
             this._logger.isVerboseEnabled && this._logger.verbose(`Transfer accepted by backend returning homeTransactionId: ${response.homeTransactionId} for mojaloop transferId: ${prepareRequest.transferId}`);
             this.data.homeTransactionId = response.homeTransactionId;
+
+            if (response.extensionList) {
+                this.data.extensionList = response.extensionList;
+            }
 
             // create a  mojaloop transfer fulfil response
             const mojaloopResponse = {
@@ -1020,7 +1027,7 @@ class InboundTransfersModel {
             var notificationError = false;
 
             try {
-                console.log("putTransferData:",this.data);
+                console.log("putTransferData:", this.data);
                 const res = await this._backendRequests.putTransfersNotification(this.data, transferId);
 
                 this.data.currentState = SDKStateEnum.COMPLETED;
@@ -1036,7 +1043,7 @@ class InboundTransfersModel {
                 this.data.lastError = 'Problem occurred while sending notification to Payee backend';
                 await this._save();
             }
-     
+
 
 
             return res;
