@@ -460,7 +460,7 @@ class InboundTransfersModel {
             // make a call to the backend to inform it of the incoming transfer
             const response = await this._backendRequests.postTransfers(internalForm);
 
-            console.log("response from cc:",response);
+            console.log("response from cc:", response);
 
             if (!response) {
                 // make an error callback to the source fsp
@@ -470,18 +470,19 @@ class InboundTransfersModel {
             this._logger.isVerboseEnabled && this._logger.verbose(`Transfer accepted by backend returning homeTransactionId: ${response.homeTransactionId} for mojaloop transferId: ${prepareRequest.transferId}`);
             this.data.homeTransactionId = response.homeTransactionId;
 
-          
+
 
             // create a  mojaloop transfer fulfil response
             const mojaloopResponse = {
                 completedTimestamp: response.completedTimestamp || new Date(),
                 transferState: response.transferState || (this._reserveNotification ? FSPIOPTransferStateEnum.RESERVED : FSPIOPTransferStateEnum.COMMITTED),
                 fulfilment: response.fulfilment || fulfilment,
-                ...response.extensionList && {
-                    extensionList: {
-                        extension: response.extensionList.extension,
-                    },
-                },
+                extensionList: {
+                    extension: [
+                        { key: 'homeTransactionId', value: response.homeTransactionId }
+                    ]
+                }
+
             };
 
             // make a callback to the source fsp with the transfer fulfilment
