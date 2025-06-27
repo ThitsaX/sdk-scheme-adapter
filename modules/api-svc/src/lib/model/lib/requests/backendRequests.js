@@ -72,7 +72,7 @@ class BackendRequests {
      */
     async getParties(idType, idValue, idSubValue) {
         const url = `parties/${idType}/${idValue}`
-            + (idSubValue ? `/${idSubValue}` : '');
+          + (idSubValue ? `/${idSubValue}` : '');
         return this._get(url);
     }
 
@@ -214,7 +214,7 @@ class BackendRequests {
      *
      * @returns {object} - headers object for use in requests to mojaloop api endpoints
      */
-    _buildHeaders() {
+    _buildHeaders () {
         const headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
@@ -259,7 +259,7 @@ class BackendRequests {
     _patch(url, body) {
         const reqOpts = {
             method: 'PATCH',
-            uri: buildUrl(this.backendEndpoint, url),
+            uri : buildUrl(this.backendEndpoint, url),
             headers: this._buildHeaders(),
             body: JSON.stringify(body)
         };
@@ -269,8 +269,8 @@ class BackendRequests {
     async sendRequest(reqOptions) {
         try {
             this.logger.isVerboseEnabled && this.logger.push({ reqOptions }).verbose(`Executing HTTP ${reqOptions?.method}...`);
-            const res = await this.requester.sendRequest({ ...reqOptions, agent: this.agent, responseType: 'json' });
-            console.log("response from cc:",JSON.stringify( res.body));
+            const res = await this.requester.sendRequest({ ...reqOptions, agent: this.agent,responseType: 'json' });
+            console.log("res:",res);
 
             const data = (res.headers['content-length'] === '0' || res.statusCode === 204)
                 ? null
