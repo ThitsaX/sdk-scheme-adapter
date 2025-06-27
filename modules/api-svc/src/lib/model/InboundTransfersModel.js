@@ -477,7 +477,11 @@ class InboundTransfersModel {
                 completedTimestamp: response.completedTimestamp || new Date(),
                 transferState: response.transferState || (this._reserveNotification ? FSPIOPTransferStateEnum.RESERVED : FSPIOPTransferStateEnum.COMMITTED),
                 fulfilment: response.fulfilment || fulfilment,
-                extensionList: response.extensionList || null
+                ...response.extensionList && {
+                    extensionList: {
+                        extension: response.extensionList.extension,
+                    },
+                },
             };
 
             // make a callback to the source fsp with the transfer fulfilment
