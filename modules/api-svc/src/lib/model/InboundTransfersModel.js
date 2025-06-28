@@ -477,11 +477,11 @@ class InboundTransfersModel {
                 completedTimestamp: response.completedTimestamp || new Date(),
                 transferState: response.transferState || (this._reserveNotification ? FSPIOPTransferStateEnum.RESERVED : FSPIOPTransferStateEnum.COMMITTED),
                 fulfilment: response.fulfilment || fulfilment,
-                extensionList: {
-                    extension: [
-                        { key: 'homeTransactionId', value: response.homeTransactionId }
-                    ]
-                }
+                     ...response.extensionList && {
+                    extensionList: {
+                        extension: response.extensionList.extension,
+                    },
+                },
 
             };
 
