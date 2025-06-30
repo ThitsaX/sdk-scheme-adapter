@@ -185,6 +185,11 @@ class InboundTransfersModel {
             if (headers.tracestate && headers.traceparent) {
                 headers.tracestate += `,${TRACESTATE_KEY_CALLBACK_START_TS}=${Date.now()}`;
             }
+
+            this._logger.isInfoEnabled && this._logger.push({ mojaloopError }).info(`Saving: ${mlParty}`);
+
+            await this._save();
+
             return this._mojaloopRequests.putParties(idType, idValue, idSubValue, mlParty, sourceFspId, headers);
         }
         catch (err) {
