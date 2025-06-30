@@ -176,6 +176,7 @@ class InboundTransfersModel {
             if (!response) {
                 return 'No response from backend';
             }
+            console.log("get party response from backend: ", response);
 
             // project our internal party representation into a mojaloop parties request body
             const mlParty = {
@@ -186,15 +187,11 @@ class InboundTransfersModel {
                 headers.tracestate += `,${TRACESTATE_KEY_CALLBACK_START_TS}=${Date.now()}`;
             }
 
-            this._logger.isInfoEnabled && this._logger.push({ mojaloopError }).info(`Saving: ${mlParty}`);
-
-            
 
             this.data.party = {
-               
+
                 response: mlParty,
-                
-               
+
             };
 
             console.log("this.data party: ", this.data);
@@ -493,7 +490,7 @@ class InboundTransfersModel {
                 completedTimestamp: response.completedTimestamp || new Date(),
                 transferState: response.transferState || (this._reserveNotification ? FSPIOPTransferStateEnum.RESERVED : FSPIOPTransferStateEnum.COMMITTED),
                 fulfilment: response.fulfilment || fulfilment,
-                     ...response.extensionList && {
+                ...response.extensionList && {
                     extensionList: {
                         extension: response.extensionList.extension,
                     },
