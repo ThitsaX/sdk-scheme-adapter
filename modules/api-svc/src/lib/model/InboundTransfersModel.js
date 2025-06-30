@@ -187,14 +187,15 @@ class InboundTransfersModel {
                 headers.tracestate += `,${TRACESTATE_KEY_CALLBACK_START_TS}=${Date.now()}`;
             }
 
+            console.log("this.data : ", this.data);
 
             this.data.party = {
 
-                response: mlParty,
+                response: response
 
             };
 
-            console.log("this.data party: ", this.data);
+            
 
             await this._save();
 
