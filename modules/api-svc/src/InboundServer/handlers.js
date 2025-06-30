@@ -194,6 +194,8 @@ const postPartiesByTypeAndId = (ctx) => {
  * Handles a POST /quotes request
  */
 const postQuotes = async (ctx) => {
+
+    console.log('postQuotes -> ctx.request.body', ctx.request.body);
     let quoteRequest = {};
 
     if (ctx.state.conf.isIsoApi) {
@@ -208,6 +210,8 @@ const postQuotes = async (ctx) => {
     const sourceFspId = ctx.request.headers['fspiop-source'];
     quoteRequest.body = { ...ctx.request.body };
     quoteRequest.headers = { ...ctx.request.headers };
+
+     console.log('postQuotes request:', quoteRequest.body);
 
     // kick off an asyncronous operation to handle the request
     (async () => {

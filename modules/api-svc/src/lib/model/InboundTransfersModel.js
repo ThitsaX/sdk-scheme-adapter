@@ -268,6 +268,7 @@ class InboundTransfersModel {
 
             mojaloopResponse.ilpPacket = ilpPacket;
             mojaloopResponse.condition = condition;
+            console.log("this.data for quote: ", this.data);
 
             // now store the fulfilment and the quote data against the quoteId in our cache
             this.data.quote = {
