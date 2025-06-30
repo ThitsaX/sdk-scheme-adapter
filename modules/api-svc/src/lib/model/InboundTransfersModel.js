@@ -188,6 +188,17 @@ class InboundTransfersModel {
 
             this._logger.isInfoEnabled && this._logger.push({ mojaloopError }).info(`Saving: ${mlParty}`);
 
+            
+
+            this.data.party = {
+               
+                response: mlParty,
+                
+               
+            };
+
+            console.log("this.data party: ", this.data);
+
             await this._save();
 
             return this._mojaloopRequests.putParties(idType, idValue, idSubValue, mlParty, sourceFspId, headers);
