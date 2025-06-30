@@ -195,6 +195,8 @@ const postPartiesByTypeAndId = (ctx) => {
  */
 const postQuotes = async (ctx) => {
 
+     console.log('postQuotes -> ctx', ctx);
+
     console.log('postQuotes -> ctx.request.body', ctx.request.body);
     let quoteRequest = {};
 
