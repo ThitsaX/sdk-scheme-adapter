@@ -250,6 +250,9 @@ class InboundTransfersModel {
             // make a call to the backend to ask for a quote response
             const response = await this._backendRequests.postQuoteRequests(internalForm);
 
+            console.log("quote response from backend: ", response);
+           
+
             if (!response) {
                 // make an error callback to the source fsp
                 return 'No response from backend';
@@ -278,6 +281,9 @@ class InboundTransfersModel {
                 mojaloopResponse: mojaloopResponse,
                 fulfilment: fulfilment
             };
+
+           
+
             await this._save();
 
             if (headers.tracestate && headers.traceparent) {
