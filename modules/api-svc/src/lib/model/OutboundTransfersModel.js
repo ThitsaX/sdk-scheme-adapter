@@ -777,8 +777,13 @@ class OutboundTransfersModel {
             expiration: this._getExpirationTimestamp()
         };
 
+        console.log('this.data.from', this.data.from);
         quote.payer = shared.internalPartyToMojaloopParty(this.data.from, this._dfspId);
+        console.log('quote.payer', quote.payer);
+
+        console.log('this.data.to', this.data.to)
         quote.payee = shared.internalPartyToMojaloopParty(this.data.to, this.data.to.fspId);
+        console.log('quote.payee', quote.payee);
 
         quote.transactionType = {
             scenario: this.data.transactionType,
