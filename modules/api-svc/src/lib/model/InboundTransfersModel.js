@@ -282,7 +282,7 @@ class InboundTransfersModel {
                 fulfilment: fulfilment
             };
 
-            this.data.recipientCurrencies= response.supportedCurrencies;
+            this.data.supportedCurrencies= response.supportedCurrencies;
             this.data.transactionType=response.transactionType;
 
            
