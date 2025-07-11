@@ -170,43 +170,10 @@ const postTransfers = async (ctx) => {
  * Handler for outbound transfer request
  */
 const getTransfers = async (ctx) => {
-    try {
-        let transferRequest = {
-            ...ctx.request.body,
-            transferId: ctx.state.path.params.transferId,
-            currentState: 'getTransfer',
-        };
-
-        console.log('getTransfers -> transferRequest', transferRequest);
-        // use the transfers model to execute asynchronous stages with the switch
-        const model = createOutboundTransfersModel(ctx);
-
-        // initialize the transfer model and start it running
-        let alreadyExists = await model.loadIfExists(transferId);
-       if (!alreadyExists) {
-         await model.initialize(transferRequest);
-       }
-
-
-        const response = await model.run();
-
-        //await model.initialize(transferRequest);
-       // const response = await model.load(ctx.state.path.params.transferId);
-
-        console.log('getTransfers -> response', response);
-    
-
-        // return the result
-        ctx.response.status = ReturnCodes.OK.CODE;
-        ctx.response.body = response;
-        console.log('getTransfers response: ', response);
-        console.log('getTransfers response body: ', ctx.response.body);
-    }
-    catch (err) {
-        return handleTransferError('getTransfers', err, ctx);
-    }
+  const transferId = ctx.params.transferId;
+  const currentState = await this.stateMachine.getState(transferId);
+  return { currentState };
 };
-
 
 /**
  * Handler for resuming outbound transfers in scenarios where two-step transfers are enabled
