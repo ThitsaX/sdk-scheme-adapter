@@ -171,16 +171,39 @@ const postTransfers = async (ctx) => {
  */
 const getTransfers = async (ctx) => {
     try {
-        // Directly load the transfer model from cache
-        const model = createOutboundTransfersModel(ctx);
-        const response = await model.load(ctx.state.path.params.transferId);
+        let transferRequest = {
+            ...ctx.request.body,
+            transferId: ctx.state.path.params.transferId,
+            currentState: 'getTransfer',
+        };
 
-        console.log('response', response);
+        console.log('getTransfers -> transferRequest', transferRequest);
+        // use the transfers model to execute asynchronous stages with the switch
+        const model = createOutboundTransfersModel(ctx);
+
+        // initialize the transfer model and start it running
+       
+         //await model.initialize(transferRequest);
+        // const response = await model.run();
+
+        const transferData = await model.load(ctx.state.path.params.transferId);
+
+        console.log('getTransfers -> transferData', transferData);
+        const response = {
+            ...transferData,
+            transferId: ctx.state.path.params.transferId,
+            currentState: model.currentState,
+            direction: model.direction,
+            // Add other fields as needed
+        };
+
         // return the result
         ctx.response.status = ReturnCodes.OK.CODE;
         ctx.response.body = response;
+        console.log('getTransfers response: ', response);
+        console.log('getTransfers response body: ', ctx.response.body);
     }
-    catch(err) {
+    catch (err) {
         return handleTransferError('getTransfers', err, ctx);
     }
 };
