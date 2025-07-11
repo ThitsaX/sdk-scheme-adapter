@@ -1490,7 +1490,7 @@ class OutboundTransfersModel {
                 case 'getTransfer':
                     await this.stateMachine.getTransfer();
                     log.isInfoEnabled && log.info('getTransfer has been completed');
-                    return;
+                    break;
 
                 default:
                     // The state is not handled here, throwing an error to avoid an infinite recursion of this function
