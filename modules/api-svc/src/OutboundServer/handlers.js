@@ -186,16 +186,11 @@ const getTransfers = async (ctx) => {
          //await model.initialize(transferRequest);
         // const response = await model.run();
 
-        const transferData = await model.load(ctx.state.path.params.transferId);
+        await model.initialize(transferRequest);
+        const response = await model.load(ctx.state.path.params.transferId);
 
         console.log('getTransfers -> transferData', transferData);
-        const response = {
-            ...transferData,
-            transferId: ctx.state.path.params.transferId,
-            currentState: model.currentState,
-            direction: model.direction,
-            // Add other fields as needed
-        };
+    
 
         // return the result
         ctx.response.status = ReturnCodes.OK.CODE;
