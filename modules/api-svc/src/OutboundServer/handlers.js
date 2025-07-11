@@ -177,6 +177,7 @@ const getTransfers = async (ctx) => {
             currentState: 'getTransfer',
         };
 
+        console.log('getTransfers -> transferRequest', transferRequest);
         // use the transfers model to execute asynchronous stages with the switch
         const model = createOutboundTransfersModel(ctx);
 
@@ -187,6 +188,8 @@ const getTransfers = async (ctx) => {
         // return the result
         ctx.response.status = ReturnCodes.OK.CODE;
         ctx.response.body = response;
+         console.log('getTransfers response: ', response);
+          console.log('getTransfers response body: ', ctx.response.body);
     }
     catch(err) {
         return handleTransferError('getTransfers', err, ctx);
