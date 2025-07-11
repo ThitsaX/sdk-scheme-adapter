@@ -174,7 +174,7 @@ const getTransfers = async (ctx) => {
         let transferRequest = {
             ...ctx.request.body,
             transferId: ctx.state.path.params.transferId,
-           
+            currentState: 'getTransfer',
         };
 
         console.log('getTransfers -> transferRequest', transferRequest);
