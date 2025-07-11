@@ -183,11 +183,11 @@ const getTransfers = async (ctx) => {
 
         // initialize the transfer model and start it running
        
-         //await model.initialize(transferRequest);
-        // const response = await model.run();
+         await model.initialize(transferRequest);
+        const response = await model.run();
 
-        await model.initialize(transferRequest);
-        const response = await model.load(ctx.state.path.params.transferId);
+        //await model.initialize(transferRequest);
+       // const response = await model.load(ctx.state.path.params.transferId);
 
         console.log('getTransfers -> response', response);
     

@@ -1488,7 +1488,7 @@ class OutboundTransfersModel {
 
                     // todo: no such state!
                 case 'getTransfer':
-                    await this.stateMachine.getTransfer();
+                    //await this.stateMachine.getTransfer();
                     log.isInfoEnabled && log.info('getTransfer has been completed');
                     break;
 
