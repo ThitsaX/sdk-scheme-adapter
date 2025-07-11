@@ -182,8 +182,12 @@ const getTransfers = async (ctx) => {
         const model = createOutboundTransfersModel(ctx);
 
         // initialize the transfer model and start it running
-       
+        let alreadyExists = await model.loadIfExists(transferId);
+       if (!alreadyExists) {
          await model.initialize(transferRequest);
+       }
+
+
         const response = await model.run();
 
         //await model.initialize(transferRequest);
