@@ -189,7 +189,7 @@ const getTransfers = async (ctx) => {
         await model.initialize(transferRequest);
         const response = await model.load(ctx.state.path.params.transferId);
 
-        console.log('getTransfers -> transferData', transferData);
+        console.log('getTransfers -> response', response);
     
 
         // return the result
@@ -202,6 +202,7 @@ const getTransfers = async (ctx) => {
         return handleTransferError('getTransfers', err, ctx);
     }
 };
+
 
 /**
  * Handler for resuming outbound transfers in scenarios where two-step transfers are enabled
