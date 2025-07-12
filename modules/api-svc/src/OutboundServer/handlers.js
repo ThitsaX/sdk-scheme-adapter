@@ -175,25 +175,19 @@ const getTransfers = async (ctx) => {
 
         console.log('getTransfers -> transferId', transferId);
 
-        // Create model just to get access to mojaloopClient (no state machine run)
+       
         const model = createOutboundTransfersModel(ctx);
-        const mojaloopClient = model.mojaloopClient;
+        console.log('before await', transferId);
+        await model.load(transferId);
 
-        console.log('before await ', transferId);
-        // Call Mojaloop directly to get transfer status
-        const transfer = await mojaloopClient.getTransfer(transferId);
+        console.log('after await', transferId);
+        ctx.response.status = ReturnCodes.OK.CODE;
+        ctx.response.body = {
+            transferId: model.data.transferId,
+            currentState: model.data.currentState
+        };
 
-         console.log('before await ', transfer);
-
-        if (transfer) {
-            ctx.response.status = ReturnCodes.OK.CODE;
-            ctx.response.body = transfer;
-            console.log('getTransfers response: ', transfer);
-        } else {
-            ctx.response.status = 404;
-            ctx.response.body = { message: 'Transfer not found or still in progress' };
-            console.log('getTransfers: Transfer not found');
-        }
+        console.log('getTransfers response:', ctx.response.body);
 
     } catch (err) {
         return handleTransferError('getTransfers', err, ctx);
