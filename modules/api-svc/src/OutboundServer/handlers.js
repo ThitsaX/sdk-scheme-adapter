@@ -170,10 +170,36 @@ const postTransfers = async (ctx) => {
  * Handler for outbound transfer request
  */
 const getTransfers = async (ctx) => {
-  const transferId = ctx.params.transferId;
-  const currentState = await this.stateMachine.getState(transferId);
-  return { currentState };
+    try {
+        const transferId = ctx.state.path.params.transferId;
+
+        console.log('getTransfers -> transferId', transferId);
+
+        // Create model just to get access to mojaloopClient (no state machine run)
+        const model = createOutboundTransfersModel(ctx);
+        const mojaloopClient = model.mojaloopClient;
+
+        console.log('before await ', transferId);
+        // Call Mojaloop directly to get transfer status
+        const transfer = await mojaloopClient.getTransfer(transferId);
+
+         console.log('before await ', transfer);
+
+        if (transfer) {
+            ctx.response.status = ReturnCodes.OK.CODE;
+            ctx.response.body = transfer;
+            console.log('getTransfers response: ', transfer);
+        } else {
+            ctx.response.status = 404;
+            ctx.response.body = { message: 'Transfer not found or still in progress' };
+            console.log('getTransfers: Transfer not found');
+        }
+
+    } catch (err) {
+        return handleTransferError('getTransfers', err, ctx);
+    }
 };
+
 
 /**
  * Handler for resuming outbound transfers in scenarios where two-step transfers are enabled
