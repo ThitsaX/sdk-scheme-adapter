@@ -177,14 +177,25 @@ const getTransfers = async (ctx) => {
 
        
         const model = createOutboundTransfersModel(ctx);
-        console.log('before await', transferId);
-        await model.load(transferId);
+        console.log('before load', transferId);
+        try {
+            await model.load(transferId);
+        } catch (loadErr) {
+            console.error('Transfer not found:', loadErr);
 
-        console.log('after await', transferId);
+            ctx.response.status = 404; // or 200 if you're using soft errors
+            ctx.response.body = {
+                statusCode: "3208",
+                message: "Transfer ID not found"
+            };
+            return;
+        }
+        console.log('after await model', model);
         ctx.response.status = ReturnCodes.OK.CODE;
         ctx.response.body = {
             transferId: model.data.transferId,
-            currentState: model.data.currentState
+            currentState: model.data.currentState,
+            direction: model.data.direction
         };
 
         console.log('getTransfers response:', ctx.response.body);
