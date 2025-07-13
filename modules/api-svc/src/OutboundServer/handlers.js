@@ -183,7 +183,7 @@ const getTransfers = async (ctx) => {
         } catch (loadErr) {
             console.error('Transfer not found:', loadErr);
 
-            ctx.response.status = 404; // or 200 if you're using soft errors
+            ctx.response.status =  ReturnCodes.OK.CODE;
             ctx.response.body = {
                 statusCode: "3208",
                 message: "Transfer ID not found"
