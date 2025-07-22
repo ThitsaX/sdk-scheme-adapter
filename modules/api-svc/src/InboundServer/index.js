@@ -48,7 +48,7 @@ const _validator = new Validate({ logExcludePaths });
 let _initialize;
 
 class InboundApi extends EventEmitter {
-    constructor(conf, logger, cache, validator, wso2) {
+    constructor(conf, logger, cache, validator, metricsClient, wso2) {
         super({ captureExceptions: true });
         this._conf = conf;
         this._cache = cache;
@@ -66,6 +66,7 @@ class InboundApi extends EventEmitter {
             logger: logger.push({ component: this.constructor.name }),
             validator,
             cache,
+            metricsClient,
             jwsVerificationKeys: this._jwsVerificationKeys,
             wso2,
         });
@@ -114,7 +115,7 @@ class InboundApi extends EventEmitter {
         }
     }
 
-    static _SetupApi({ conf, logger, validator, cache, jwsVerificationKeys, wso2 }) {
+    static _SetupApi({ conf, logger, validator, cache, metricsClient, jwsVerificationKeys, wso2 }) {
         const api = new Koa();
 
         api.use(middlewares.createErrorHandler(logger));
@@ -126,7 +127,7 @@ class InboundApi extends EventEmitter {
             api.use(middlewares.createJwsValidator(logger, jwsVerificationKeys, jwsExclusions));
         }
 
-        api.use(middlewares.applyState({ conf, cache, wso2, logExcludePaths }));
+        api.use(middlewares.applyState({ conf, cache, metricsClient, wso2, logExcludePaths }));
         api.use(middlewares.createPingMiddleware(conf, jwsVerificationKeys));
         api.use(middlewares.createRequestValidator(validator));
         api.use(middlewares.assignFspiopIdentifier());
@@ -158,7 +159,7 @@ class InboundApi extends EventEmitter {
 }
 
 class InboundServer extends EventEmitter {
-    constructor(conf, logger, cache, wso2) {
+    constructor(conf, logger, cache, metricsClient, wso2) {
         super({ captureExceptions: true });
         this._conf = conf;
         this._logger = logger.push({ app: this.constructor.name });
@@ -167,6 +168,7 @@ class InboundServer extends EventEmitter {
             this._logger,
             cache,
             _validator,
+            metricsClient,
             wso2,
         );
         this._api.on('error', (...args) => {

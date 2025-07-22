@@ -90,6 +90,37 @@ class InboundTransfersModel {
             logger: config.logger,
         });
         this._cacheTtl = config.redisCacheTtl;
+
+        // Initialize inbound metrics
+        this.metrics = {
+            partyLookupRequests: config.metricsClient.getCounter(
+                'mojaloop_connector_inbound_party_lookup_request_count',
+                'Count of inbound party lookup requests received'),
+            partyLookupResponses: config.metricsClient.getCounter(
+                'mojaloop_connector_inbound_party_lookup_response_count',
+                'Count of responses sent to inbound party lookups'),
+            quoteRequests: config.metricsClient.getCounter(
+                'mojaloop_connector_inbound_quote_request_count',
+                'Count of inbound quote requests received'),
+            quoteResponses: config.metricsClient.getCounter(
+                'mojaloop_connector_inbound_quote_response_count',
+                'Count of responses sent to inbound quote requests'),
+            transferPrepares: config.metricsClient.getCounter(
+                'mojaloop_connector_inbound_transfer_prepare_count',
+                'Count of inbound transfer prepare requests received'),
+            transferFulfils: config.metricsClient.getCounter(
+                'mojaloop_connector_inbound_transfer_fulfil_response_count',
+                'Count of responses sent to inbound transfer prepares'),
+            partyLookupLatency: config.metricsClient.getHistogram(
+                'mojaloop_connector_inbound_party_lookup_latency',
+                'Time taken to process an inbound party lookup request'),
+            quoteRequestLatency: config.metricsClient.getHistogram(
+                'mojaloop_connector_inbound_quote_request_latency',
+                'Time taken to process an inbound quote request'),
+            transferLatency: config.metricsClient.getHistogram(
+                'mojaloop_connector_inbound_transfer_latency',
+                'Time taken to process an inbound transfer prepare request')
+        };
     }
 
     updateStateWithError(err) {
@@ -169,11 +200,19 @@ class InboundTransfersModel {
      * Queries the backend API for the specified party and makes a callback to the originator with the result
      */
     async getParties(idType, idValue, idSubValue, sourceFspId, headers = {}) {
+        // Start timing and increment request counter
+        let latencyTimerDone;
+        latencyTimerDone = this.metrics.partyLookupLatency.startTimer();
+        this.metrics.partyLookupRequests.inc();
+
         try {
             // make a call to the backend to resolve the party lookup
             const response = await this._backendRequests.getParties(idType, idValue, idSubValue);
 
             if (!response) {
+                if (latencyTimerDone) {
+                    latencyTimerDone();
+                }
                 return 'No response from backend';
             }
             console.log("get party response from backend: ", response);
@@ -187,21 +226,22 @@ class InboundTransfersModel {
                 headers.tracestate += `,${TRACESTATE_KEY_CALLBACK_START_TS}=${Date.now()}`;
             }
 
-            // console.log("this.data : ", this.data);
-
-            // this.data.party = {
-
-            //     response: response
-
-            // };
-
+            const result = await this._mojaloopRequests.putParties(idType, idValue, idSubValue, mlParty, sourceFspId, headers);
             
-
-            // await this._save();
-
-            return this._mojaloopRequests.putParties(idType, idValue, idSubValue, mlParty, sourceFspId, headers);
+            // Stop timer and increment response counter on success
+            if (latencyTimerDone) {
+                latencyTimerDone();
+            }
+            this.metrics.partyLookupResponses.inc();
+            
+            return result;
         }
         catch (err) {
+            // Stop timer even on error
+            if (latencyTimerDone) {
+                latencyTimerDone();
+            }
+            
             this._logger.isErrorEnabled && this._logger.push({ err, idValue }).error('Error in getParties');
             const mojaloopError = await this._handleError(err);
             this._logger.isInfoEnabled && this._logger.push({ mojaloopError }).info(`Sending error response to ${sourceFspId}`);
@@ -218,6 +258,11 @@ class InboundTransfersModel {
         console.log("quoteRequest:", request);
         console.log("quoteRequest payee:", request.body.payee);
         const quoteRequest = request.body;
+
+        // Start timing and increment request counter
+        let latencyTimerDone;
+        latencyTimerDone = this.metrics.quoteRequestLatency.startTimer();
+        this.metrics.quoteRequests.inc();
 
         // keep track of our state.
         // note that instances of this model typically only live as long as it takes to
@@ -301,9 +346,20 @@ class InboundTransfersModel {
             this.data.currentState = SDKStateEnum.WAITING_FOR_QUOTE_ACCEPTANCE;
             await this._save();
 
+            // Stop timer and increment response counter on success
+            if (latencyTimerDone) {
+                latencyTimerDone();
+            }
+            this.metrics.quoteResponses.inc();
+
             log.isInfoEnabled && log.info('quoteRequest is done');
             return res;
         } catch (err) {
+            // Stop timer even on error
+            if (latencyTimerDone) {
+                latencyTimerDone();
+            }
+
             log.push({ err }).error('Error in quoteRequest');
             const mojaloopError = await this._handleError(err);
             log.isInfoEnabled && log.push({ mojaloopError }).info(`Sending error response to ${sourceFspId}`);
@@ -415,6 +471,12 @@ class InboundTransfersModel {
      */
     async prepareTransfer(request, sourceFspId, headers) {
         const prepareRequest = request.body;
+
+        // Start timing and increment request counter
+        let latencyTimerDone;
+        latencyTimerDone = this.metrics.transferLatency.startTimer();
+        this.metrics.transferPrepares.inc();
+
         try {
             // retrieve our quote data
             if (this._allowDifferentTransferTransactionId) {
@@ -521,8 +583,20 @@ class InboundTransfersModel {
             this.data.currentState = response.transferState || (this._reserveNotification ? SDKStateEnum.RESERVED : SDKStateEnum.COMPLETED);
 
             await this._save();
+
+            // Stop timer and increment response counter on success
+            if (latencyTimerDone) {
+                latencyTimerDone();
+            }
+            this.metrics.transferFulfils.inc();
+
             return res;
         } catch (err) {
+            // Stop timer even on error
+            if (latencyTimerDone) {
+                latencyTimerDone();
+            }
+            
             this._logger.isErrorEnabled && this._logger.push({ err }).error(`Error in prepareTransfer: ${prepareRequest?.transferId}`);
             const mojaloopError = await this._handleError(err);
             this._logger.isInfoEnabled && this._logger.push({ mojaloopError }).info(`Sending error response to ${sourceFspId}`);
