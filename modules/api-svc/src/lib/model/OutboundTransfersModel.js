@@ -322,102 +322,110 @@ class OutboundTransfersModel {
             let latencyTimerDone;
 
             // hook up a subscriber to handle response messages
-            const subId = await this._cache.subscribe(payeeKey, (cn, msg, subId) => {
-                try {
-                    if(latencyTimerDone) {
-                        latencyTimerDone();
-                    }
-                    this.metrics.partyLookupResponses.inc();
+            this._logger.isVerboseEnabled && this._logger.push({ payee }).verbose('Resolving payee ' + this.data.to.idType + "/" + this.data.to.idValue);
 
-                    this.data.getPartiesResponse = JSON.parse(msg);
-                    if (this.data.getPartiesResponse.body?.errorInformation) {
-                        // this is an error response to our GET /parties request
-                        const err = new BackendError(`Got an error response resolving party: ${safeStringify(this.data.getPartiesResponse.body, { depth: Infinity })}`, 500);
-                        err.mojaloopError = this.data.getPartiesResponse.body;
-                        // cancel the timeout handler
-                        clearTimeout(timeout);
-                        return reject(err);
-                    }
-                    let payee = this.data.getPartiesResponse.body;
-
-                    if(!payee.party) {
-                        // we should never get a non-error response without a party, but just in case...
-                        // cancel the timeout handler
-                        clearTimeout(timeout);
-                        return reject(new Error(`Resolved payee has no party object: ${safeStringify(payee)}`));
-                    }
-
-                    payee = payee.party;
-
-                    // cancel the timeout handler
-                    clearTimeout(timeout);
-
-                    this._logger.isVerboseEnabled && this._logger.push({ payee }).verbose('Payee resolved');
-
-                    // stop listening for payee resolution messages
-                    // no need to await for the unsubscribe to complete.
-                    // we dont really care if the unsubscribe fails but we should log it regardless
-                    this._cache.unsubscribe(payeeKey, subId, true).catch(e => {
-                        this._logger.isErrorEnabled && this._logger.error(`Error unsubscribing (in callback) ${payeeKey} ${subId}: ${e.stack || safeStringify(e)}`);
-                    });
-
-                    // check we got the right payee and info we need
-                    if(payee.partyIdInfo.partyIdType !== this.data.to.idType) {
-                        const err = new Error(`Expecting resolved payee party IdType to be ${this.data.to.idType} but got ${payee.partyIdInfo.partyIdType}`);
-                        return reject(err);
-                    }
-
-                    if(payee.partyIdInfo.partyIdentifier !== this.data.to.idValue) {
-                        const err = new Error(`Expecting resolved payee party identifier to be ${this.data.to.idValue} but got ${payee.partyIdInfo.partyIdentifier}`);
-                        return reject(err);
-                    }
-
-                    if(payee.partyIdInfo.partySubIdOrType !== this.data.to.idSubValue) {
-                        const err = new Error(`Expecting resolved payee party subTypeId to be ${this.data.to.idSubValue} but got ${payee.partyIdInfo.partySubIdOrType}`);
-                        return reject(err);
-                    }
-
-                    if(!payee.partyIdInfo.fspId) {
-                        const err = new Error(`Expecting resolved payee party to have an FSPID: ${safeStringify(payee.partyIdInfo)}`);
-                        return reject(err);
-                    }
-
-                    // now we got the payee, add the details to our data so we can use it
-                    // in the quote request
-                    this.data.to.fspId = payee.partyIdInfo.fspId;
-                    if(payee.partyIdInfo.extensionList) {
-                        this.data.to.extensionList  = payee.partyIdInfo.extensionList.extension;
-                    }
-                    if(payee.personalInfo) {
-                        if(payee.personalInfo.complexName) {
-                            this.data.to.firstName = payee.personalInfo.complexName.firstName || this.data.to.firstName;
-                            this.data.to.middleName = payee.personalInfo.complexName.middleName || this.data.to.middleName;
-                            this.data.to.lastName = payee.personalInfo.complexName.lastName || this.data.to.lastName;
+            // hook up a subscriber to handle response messages
+            try{
+                const subId = await this._cache.subscribe(payeeKey, (cn, msg, subId) => {
+                    try {
+                        if(latencyTimerDone) {
+                            latencyTimerDone();
                         }
-                        this.data.to.dateOfBirth = payee.personalInfo.dateOfBirth;
-                    }
+                        this.metrics.partyLookupResponses.inc();
 
-                    if (Array.isArray(payee.supportedCurrencies)) {
-                        if (!payee.supportedCurrencies.length) {
-                            throw new Error(ErrorMessages.noSupportedCurrencies);
+                        this.data.getPartiesResponse = JSON.parse(msg);
+                        if (this.data.getPartiesResponse.body?.errorInformation) {
+                            // this is an error response to our GET /parties request
+                            const err = new BackendError(`Got an error response resolving party: ${safeStringify(this.data.getPartiesResponse.body, { depth: Infinity })}`, 500);
+                            err.mojaloopError = this.data.getPartiesResponse.body;
+                            // cancel the timeout handler
+                            clearTimeout(timeout);
+                            return reject(err);
+                        }
+                        let payee = this.data.getPartiesResponse.body;
+
+                        if(!payee.party) {
+                            // we should never get a non-error response without a party, but just in case...
+                            // cancel the timeout handler
+                            clearTimeout(timeout);
+                            return reject(new Error(`Resolved payee has no party object: ${safeStringify(payee)}`));
                         }
 
-                        this.data.needFx = this._isFxNeeded(this._supportedCurrencies, payee.supportedCurrencies, this.data.currency, this.data.amountType);
-                        this.data.supportedCurrencies = payee.supportedCurrencies;
+                        payee = payee.party;
+
+                        // cancel the timeout handler
+                        clearTimeout(timeout);
+
+                        this._logger.isVerboseEnabled && this._logger.push({ payee }).verbose('Payee resolved');
+
+                        // stop listening for payee resolution messages
+                        // no need to await for the unsubscribe to complete.
+                        // we dont really care if the unsubscribe fails but we should log it regardless
+                        this._cache.unsubscribe(payeeKey, subId, true).catch(e => {
+                            this._logger.isErrorEnabled && this._logger.error(`Error unsubscribing (in callback) ${payeeKey} ${subId}: ${e.stack || safeStringify(e)}`);
+                        });
+
+                        // check we got the right payee and info we need
+                        if(payee.partyIdInfo.partyIdType !== this.data.to.idType) {
+                            const err = new Error(`Expecting resolved payee party IdType to be ${this.data.to.idType} but got ${payee.partyIdInfo.partyIdType}`);
+                            return reject(err);
+                        }
+
+                        if(payee.partyIdInfo.partyIdentifier !== this.data.to.idValue) {
+                            const err = new Error(`Expecting resolved payee party identifier to be ${this.data.to.idValue} but got ${payee.partyIdInfo.partyIdentifier}`);
+                            return reject(err);
+                        }
+
+                        if(payee.partyIdInfo.partySubIdOrType !== this.data.to.idSubValue) {
+                            const err = new Error(`Expecting resolved payee party subTypeId to be ${this.data.to.idSubValue} but got ${payee.partyIdInfo.partySubIdOrType}`);
+                            return reject(err);
+                        }
+
+                        if(!payee.partyIdInfo.fspId) {
+                            const err = new Error(`Expecting resolved payee party to have an FSPID: ${safeStringify(payee.partyIdInfo)}`);
+                            return reject(err);
+                        }
+
+                        // now we got the payee, add the details to our data so we can use it
+                        // in the quote request
+                        this.data.to.fspId = payee.partyIdInfo.fspId;
+                        if(payee.partyIdInfo.extensionList) {
+                            this.data.to.extensionList  = payee.partyIdInfo.extensionList.extension;
+                        }
+                        if(payee.personalInfo) {
+                            if(payee.personalInfo.complexName) {
+                                this.data.to.firstName = payee.personalInfo.complexName.firstName || this.data.to.firstName;
+                                this.data.to.middleName = payee.personalInfo.complexName.middleName || this.data.to.middleName;
+                                this.data.to.lastName = payee.personalInfo.complexName.lastName || this.data.to.lastName;
+                            }
+                            this.data.to.dateOfBirth = payee.personalInfo.dateOfBirth;
+                        }
+
+                        if (Array.isArray(payee.supportedCurrencies)) {
+                            if (!payee.supportedCurrencies.length) {
+                                throw new Error(ErrorMessages.noSupportedCurrencies);
+                            }
+
+                            this.data.needFx = this._isFxNeeded(this._supportedCurrencies, payee.supportedCurrencies, this.data.currency, this.data.amountType);
+                            this.data.supportedCurrencies = payee.supportedCurrencies;
+                        }
+
+                        this._logger.isVerboseEnabled && this._logger.push({
+                            transferId: this.data.transferId,
+                            homeTransactionId: this.data.homeTransactionId,
+                            needFx: this.data.needFx,
+                        }).verbose('Payee validation passed');
+
+                        return resolve(payee);
                     }
-
-                    this._logger.isVerboseEnabled && this._logger.push({
-                        transferId: this.data.transferId,
-                        homeTransactionId: this.data.homeTransactionId,
-                        needFx: this.data.needFx,
-                    }).verbose('Payee validation passed');
-
-                    return resolve(payee);
-                }
-                catch (err) {
-                    return reject(err);
-                }
-            });
+                    catch (err) {
+                        return reject(err);
+                    }
+                });
+            }catch(err) {
+                this._logger.isErrorEnabled && this._logger.error(`Error subscribing payeeKey (in timeout handler) ${payeeKey} ${subId}: ${e.stack || safeStringify(e)}`);
+                return reject(err);
+            }
 
             // set up a timeout for the resolution
             const timeout = setTimeout(() => {
