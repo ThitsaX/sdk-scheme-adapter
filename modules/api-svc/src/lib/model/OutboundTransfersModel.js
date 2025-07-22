@@ -321,10 +321,7 @@ class OutboundTransfersModel {
 
             let latencyTimerDone;
 
-            // hook up a subscriber to handle response messages
-            this._logger.isVerboseEnabled && this._logger.push({ payee }).verbose('Resolving payee ' + this.data.to.idType + "/" + this.data.to.idValue);
-
-            // hook up a subscriber to handle response messages
+          
             try{
                 const subId = await this._cache.subscribe(payeeKey, (cn, msg, subId) => {
                     try {
