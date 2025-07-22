@@ -74,6 +74,7 @@ const createInboundTransfersModel = (ctx) => new InboundTransfersModel({
     },
     cache: ctx.state.cache,
     logger: ctx.state.logger,
+    metricsClient: ctx.state.metricsClient,
     wso2: ctx.state.wso2,
     resourceVersions: ctx.resourceVersions,
 });
