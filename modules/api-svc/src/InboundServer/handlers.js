@@ -493,8 +493,8 @@ const putPartiesByTypeAndId = async (ctx) => {
         headers: {...ctx.request.headers}
     };
 
-   console.log('putPartiesByTypeAndId', idType, idValue, idSubValue, message);
-    ctx.state.logger.isDebugEnabled && ctx.state.logger.push({ response }).info('putPartiesByTypeAndId' + idType + idValue + idSubValue + message);
+   console.log('putPartiesByTypeAndId:'+ idType+ idValue+ idSubValue);
+    ctx.state.logger.isDebugEnabled && ctx.state.logger.push({ message }).info('putPartiesByTypeAndId' + idType + idValue + idSubValue );
 
     try{
         // publish an event onto the cache for subscribers to finish the action
@@ -509,7 +509,7 @@ const putPartiesByTypeAndId = async (ctx) => {
         });
     }catch(err){
         console.log('putPartiesByTypeAndId error', err);
-        ctx.state.logger.isDebugEnabled && ctx.state.logger.push({ response }).error('putPartiesByTypeAndId error -> ' + idType + idValue + idSubValue + message);
+        ctx.state.logger.isDebugEnabled && ctx.state.logger.push({ message }).error('putPartiesByTypeAndId error -> ' + idType + idValue + idSubValue );
     }
 
     ctx.response.status = ReturnCodes.OK.CODE;
