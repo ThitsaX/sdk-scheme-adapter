@@ -493,16 +493,24 @@ const putPartiesByTypeAndId = async (ctx) => {
         headers: {...ctx.request.headers}
     };
 
-    // publish an event onto the cache for subscribers to finish the action
-    await PartiesModel.triggerDeferredJob({
-        cache: ctx.state.cache,
-        message,
-        args: {
-            type: idType,
-            id: idValue,
-            subId: idSubValue
-        }
-    });
+   console.log('putPartiesByTypeAndId', idType, idValue, idSubValue, message);
+    ctx.state.logger.isDebugEnabled && ctx.state.logger.push({ response }).info('putPartiesByTypeAndId' + idType + idValue + idSubValue + message);
+
+    try{
+        // publish an event onto the cache for subscribers to finish the action
+        await PartiesModel.triggerDeferredJob({
+            cache: ctx.state.cache,
+            message,
+            args: {
+                type: idType,
+                id: idValue,
+                subId: idSubValue
+            }
+        });
+    }catch(err){
+        console.log('putPartiesByTypeAndId error', err);
+        ctx.state.logger.isDebugEnabled && ctx.state.logger.push({ response }).error('putPartiesByTypeAndId error -> ' + idType + idValue + idSubValue + message);
+    }
 
     ctx.response.status = ReturnCodes.OK.CODE;
 };
