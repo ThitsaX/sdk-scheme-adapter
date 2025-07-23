@@ -40,7 +40,7 @@ class BackendRequests {
         this.logger = config.logger.push({ component: this.constructor.name });
         this.requester = createHttpRequester({
             logger: this.logger,
-            timeout: config.httpTimeoutMs || 30000, // 30 seconds default instead of 65 seconds
+            timeout: config.httpTimeoutMs || 60000, // 60 seconds default instead of 65 seconds
             keepAlive: true,
             maxSockets: config.maxHttpSockets || 100,
             retry: {
