@@ -38,7 +38,16 @@ class BackendRequests {
     constructor(config) {
         this.config = config;
         this.logger = config.logger.push({ component: this.constructor.name });
-        this.requester = createHttpRequester({ logger: this.logger });
+        this.requester = createHttpRequester({
+            logger: this.logger,
+            timeout: config.httpTimeoutMs || 30000, // 30 seconds default instead of 65 seconds
+            keepAlive: true,
+            maxSockets: config.maxHttpSockets || 100,
+            retry: {
+                retries: config.httpRetries || 3,
+                retryDelay: config.httpRetryDelayMs || 1000
+            }
+        });
 
         // FSPID of THIS DFSP
         this.dfspId = config.dfspId;
