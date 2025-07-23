@@ -73,7 +73,7 @@ class Cache {
         
         // Connection pool configuration to prevent connection exhaustion
         this._connectionPoolConfig = {
-            maxClients: config.maxRedisClients || 10,
+            maxClients: config.maxRedisClients || 100,
             connectTimeout: config.redisConnectTimeoutMs || 5000,
             commandTimeout: config.redisCommandTimeoutMs || 10000,
             retryDelayOnFailover: config.redisRetryDelayMs || 100,
