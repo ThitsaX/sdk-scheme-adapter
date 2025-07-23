@@ -325,7 +325,7 @@ class OutboundTransfersModel {
 
             try{
 
-                this._logger.isErrorEnabled && this._logger.info(`Start subscribing payeeKey (in timeout handler) ${payeeKey} `);
+                console.log(`Start subscribing payeeKey (in timeout handler) ${payeeKey} `);
 
                 subId = await this._cache.subscribe(payeeKey, (cn, msg, subId) => {
                     try {
@@ -424,10 +424,10 @@ class OutboundTransfersModel {
                     }
                 });
 
-                this._logger.isErrorEnabled && this._logger.info(`Done subscribing payeeKey (in timeout handler) ${payeeKey} `);
+                console.log(`Done subscribing payeeKey (in timeout handler) ${payeeKey} `);
 
             }catch(err) {
-                this._logger.isErrorEnabled && this._logger.error(`Error subscribing payeeKey (in timeout handler) ${payeeKey} ${subId}`);
+                console.log(`Error subscribing payeeKey (in timeout handler) ${payeeKey} ${subId}`);
                 return reject(err);
             }
 
