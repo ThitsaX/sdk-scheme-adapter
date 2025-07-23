@@ -154,6 +154,7 @@ const postTransfers = async (ctx) => {
         const model = createOutboundTransfersModel(ctx);
 
         // initialize the transfer model and start it running
+        console.log(`postTransfers - before initialize ${transferRequest}`);
         await model.initialize(transferRequest);
         const response = await model.run();
 
@@ -162,6 +163,7 @@ const postTransfers = async (ctx) => {
         ctx.response.body = response;
     }
     catch(err) {
+        console.log(`postTransfers error ${JSON.stringify(err)}`);
         return handleTransferError('postTransfers', err, ctx);
     }
 };
