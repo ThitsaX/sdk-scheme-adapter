@@ -624,7 +624,9 @@ const getPartiesByTypeAndId = async (ctx) => {
         const model = await PartiesModel.create({}, cacheKey, modelConfig);
 
         // run model's workflow
+        console.log(`Invoking getPartiesByTypeAndId args: ${JSON.stringify(args)}`);
         const response = await model.run(args);
+        console.log(`Done invoking getPartiesByTypeAndId args: ${JSON.stringify(args)}`);
 
         // return the result
         if (response.errorInformation) {

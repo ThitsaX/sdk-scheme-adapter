@@ -57,7 +57,17 @@ function channelName({ type, id, subId }) {
  *   @param {string} [args.subId]  - the optional party subId
  */
 function requestAction(requests, { type, id, subId }) {
-    return requests.getParties(type, id, subId);
+
+    try {
+      console.log(`Requesting GET /parties - requestAction : ${type}-${id}-${subId}`);
+      return requests.getParties(type, id, subId);
+
+    }catch (err){
+      console.log(`Error requesting GET /parties - requestAction : ${type}-${id}-${subId}`);
+      throw new Error(err);
+    }finally {
+      console.log(`Done requesting GET /parties - requestAction : ${type}-${id}-${subId}`);
+    }
 }
 
 /**

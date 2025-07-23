@@ -217,7 +217,7 @@ module.exports = {
     rejectTransfersOnExpiredQuotes: env.get('REJECT_TRANSFERS_ON_EXPIRED_QUOTES').default('false').asBool(),
     rejectExpiredTransferFulfils: env.get('REJECT_EXPIRED_TRANSFER_FULFILS').default('false').asBool(),
 
-    requestProcessingTimeoutSeconds: env.get('REQUEST_PROCESSING_TIMEOUT_SECONDS').default('30').asIntPositive(),
+    requestProcessingTimeoutSeconds: env.get('REQUEST_PROCESSING_TIMEOUT_SECONDS').default('60').asIntPositive(),
 
     logIndent: env.get('LOG_INDENT').default('2').asIntPositive(),
     isJsonOutput:  env.get('LOG_IS_JSON_OUTPUT').default('false').asBool(),
