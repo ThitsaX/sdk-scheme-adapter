@@ -624,14 +624,18 @@ const getPartiesByTypeAndId = async (ctx) => {
         const model = await PartiesModel.create({}, cacheKey, modelConfig);
 
         // run model's workflow
+        console.log("Get Parties Request from Payer cc: ", args);
         const response = await model.run(args);
 
+    
         // return the result
         if (response.errorInformation) {
             ctx.response.status = ReturnCodes.NOTFOUND.CODE;
+                console.log("Get Parties Error Response to Payer cc: ", response.errorInformation);
         } else {
             ctx.response.status = ReturnCodes.OK.CODE;
         }
+          console.log("Get Parties Success Response to Payer cc: ", ctx.response.body);
         ctx.response.body = response;
     } catch (err) {
         return handleRequestPartiesInformationError('getPartiesByTypeAndId', err, ctx);
@@ -659,8 +663,10 @@ const postQuotes = async (ctx) => {
         const model = await QuotesModel.create({}, cacheKey, modelConfig);
 
         // run model's workflow
+         console.log("Post Quote Request from Payer cc: ", args);
         const response = await model.run(args);
 
+         console.log("Post Quote Response from Payer cc: ", response);
         // return the result
         ctx.response.status = ReturnCodes.OK.CODE;
         ctx.response.body = response;

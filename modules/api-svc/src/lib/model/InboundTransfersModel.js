@@ -1139,11 +1139,13 @@ class InboundTransfersModel {
                 this.data.currentState = SDKStateEnum.ERROR_OCCURRED;
                 this.data.lastError = 'Problem occurred while sending notification to Payee backend';
                 await this._save();
+                 console.log("After save: ");
+                return res;
             }
 
 
 
-            return res;
+          
 
         } catch (err) {
 
