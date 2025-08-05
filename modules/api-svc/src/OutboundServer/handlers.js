@@ -150,6 +150,8 @@ const postTransfers = async (ctx) => {
             ...ctx.request.body
         };
 
+        console.log('post Transfers Request:', transferRequest);
+
         // use the transfers model to execute asynchronous stages with the switch
         const model = createOutboundTransfersModel(ctx);
 
@@ -158,6 +160,7 @@ const postTransfers = async (ctx) => {
         const response = await model.run();
 
         // return the result
+        console.log('post Transfers Response:', response);
         ctx.response.status = ReturnCodes.OK.CODE;
         ctx.response.body = response;
     }
@@ -214,6 +217,7 @@ const putTransfers = async (ctx) => {
     try {
         // this requires a multi-stage sequence with the switch.
         // use the transfers model to execute asynchronous stages with the switch
+       console.log(`put Transfers Request: ${ctx.state.path.params.transferId} : ${JSON.stringify(ctx.request.body)}`);
         const model = createOutboundTransfersModel(ctx);
 
         // TODO: check the incoming body to reject party or quote when requested to do so
@@ -222,6 +226,8 @@ const putTransfers = async (ctx) => {
         await model.load(ctx.state.path.params.transferId);
 
         const response = await model.run(ctx.request.body);
+
+        console.log(`put Transfers Response: ${ctx.state.path.params.transferId} : ${JSON.stringify(response)}`);
 
         // return the result
         ctx.response.status = ReturnCodes.OK.CODE;

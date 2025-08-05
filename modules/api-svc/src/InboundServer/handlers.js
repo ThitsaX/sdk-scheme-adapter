@@ -154,6 +154,7 @@ const getParticipantsByTypeAndId = async (ctx) => {
  */
 const getPartiesByTypeAndId = async (ctx) => {
     const sourceFspId = ctx.request.headers['fspiop-source'];
+    const destinationFspId = ctx.request.headers['fspiop-destination'];
     const idType = ctx.state.path.params.Type;
     const idValue = ctx.state.path.params.ID;
     const subIdValue = ctx.state.path.params.SubId;
@@ -161,10 +162,13 @@ const getPartiesByTypeAndId = async (ctx) => {
     (async () => {
         try {
             // use the transfers model to execute asynchronous stages with the switch
+            console.log('get party Request:', sourceFspId, destinationFspId,idType, idValue, subIdValue);
+
             const model = createInboundTransfersModel(ctx);
 
             const response = await model.getParties(idType, idValue, subIdValue, sourceFspId, extractTraceHeaders(ctx));
 
+             console.log('get party Response:', response);
             // log the result
             ctx.state.logger.isDebugEnabled && ctx.state.logger.push({ response }).debug('Inbound transfers model handled GET /parties/{idType}/{idValue} request');
         }
@@ -196,9 +200,7 @@ const postPartiesByTypeAndId = (ctx) => {
  */
 const postQuotes = async (ctx) => {
 
-     console.log('postQuotes -> ctx', ctx);
-
-    console.log('postQuotes -> ctx.request.body', ctx.request.body);
+    console.log('post Quotes Request:', ctx.request.body);
     let quoteRequest = {};
 
     if (ctx.state.conf.isIsoApi) {
@@ -214,7 +216,6 @@ const postQuotes = async (ctx) => {
     quoteRequest.body = { ...ctx.request.body };
     quoteRequest.headers = { ...ctx.request.headers };
 
-     console.log('postQuotes request:', quoteRequest.body);
 
     // kick off an asyncronous operation to handle the request
     (async () => {
@@ -223,6 +224,8 @@ const postQuotes = async (ctx) => {
             const model = createInboundTransfersModel(ctx);
 
             const response = await model.quoteRequest(quoteRequest, sourceFspId, extractTraceHeaders(ctx));
+
+            console.log('post Quotes Response:', ctx.request.body);
 
             // log the result
             ctx.state.logger.isDebugEnabled && ctx.state.logger.push({ response }).debug('Inbound transfers model handled POST /quotes request');
@@ -259,12 +262,15 @@ const postTransfers = async (ctx) => {
     // kick off an asyncronous operation to handle the request
     (async () => {
         try {
+
+             console.log('post transfer Request:', ctx.request.body);
             // use the transfers model to execute asynchronous stages with the switch
             const model = createInboundTransfersModel(ctx);
 
             // use the model to handle the request
             const response = await model.prepareTransfer(transferRequest, sourceFspId, extractTraceHeaders(ctx));
 
+              console.log('post transfer Response:', response.body);
             // log the result
             ctx.state.logger.isDebugEnabled && ctx.state.logger.push({ response }).debug('Inbound transfers model handled POST /transfers request');
         }
