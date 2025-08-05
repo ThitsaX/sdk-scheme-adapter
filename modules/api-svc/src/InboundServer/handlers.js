@@ -154,7 +154,7 @@ const getParticipantsByTypeAndId = async (ctx) => {
  */
 const getPartiesByTypeAndId = async (ctx) => {
     const sourceFspId = ctx.request.headers['fspiop-source'];
-    const destinationFspId = ctx.request.headers['fspiop-destination'];
+   // const destinationFspId = ctx.request.headers['fspiop-destination'];
     const idType = ctx.state.path.params.Type;
     const idValue = ctx.state.path.params.ID;
     const subIdValue = ctx.state.path.params.SubId;
@@ -162,7 +162,8 @@ const getPartiesByTypeAndId = async (ctx) => {
     (async () => {
         try {
             // use the transfers model to execute asynchronous stages with the switch
-            console.log('get party Request:', sourceFspId, destinationFspId,idType, idValue, subIdValue);
+
+            console.log('get party Request ctx:', JSON.stringify(ctx));
 
             const model = createInboundTransfersModel(ctx);
 
