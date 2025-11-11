@@ -451,12 +451,21 @@ class OutboundTransfersModel {
             // a GET /parties request to the switch
             try {
                 latencyTimerDone = this.metrics.partyLookupLatency.startTimer();
+                const headers = this.#createOtelHeaders();
+                this._logger.isInfoEnabled && this._logger.info('CHECK TOKEN PARTY: ', {
+                    transferId: this.data.transferId,
+                    type: this.data.to.idType,
+                    id: this.data.to.idValue,
+                    subId: this.data.to.idSubValue,
+                    headers
+                });
+
                 const res = await this._requests.getParties(
                     this.data.to.idType,
                     this.data.to.idValue,
                     this.data.to.idSubValue,
                     this.data.to.fspId,
-                    this.#createOtelHeaders()
+                    headers
                 );
 
                 this.data.getPartiesRequest = res.originalRequest;
@@ -750,7 +759,11 @@ class OutboundTransfersModel {
             // a POST /quotes request to the switch
             try {
                 latencyTimerDone = this.metrics.quoteRequestLatency.startTimer();
-                const res = await this._requests.postQuotes(quote, this.data.to.fspId, this.#createOtelHeaders());
+                const headers = this.#createOtelHeaders();
+                this._logger.isInfoEnabled && this._logger.info('CHECK TOKEN QUOTE: ', {
+                    headers
+                });
+                const res = await this._requests.postQuotes(quote, this.data.to.fspId, headers);
 
                 this.data.quoteRequest = {
                     body: quote,
