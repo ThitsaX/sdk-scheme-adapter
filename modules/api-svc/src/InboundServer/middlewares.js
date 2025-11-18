@@ -228,10 +228,11 @@ const createRequestIdGenerator = (logger) => async (ctx, next) => {
     ctx.state.receivedAt = Date.now();
 
     if (shouldLog(ctx.path, logger)) {
-        const { method, path, id, headers } = ctx.request;
-        logger
-            .push({ method, path, id, headers })
-            .info(`[==> req] ${method?.toUpperCase()} ${path} - requestId: ${id}`);
+        //const { method, path, id, headers } = ctx.request;
+        // Disabled verbose request logging
+        // logger
+        //     .push({ method, path, id, headers })
+        //     .info(`[==> req] ${method?.toUpperCase()} ${path} - requestId: ${id}`);
     }
 
     await next();
@@ -496,10 +497,11 @@ const createResponseBodyHandler = () => async (ctx, next) => {
 
 const logResponse = (ctx) => {
     if (shouldLog(ctx.path, ctx.state.logger)) {
-        const { method, path, id } = ctx.request;
-        const { status = 'n/a' } = ctx.response;
-        const processTime = ((Date.now() - ctx.state.receivedAt) / 1000).toFixed(1);
-        ctx.state.logger.info(`[<== ${status}] ${method?.toUpperCase()} ${path} [${processTime}sec] - requestId: ${id}`);
+        //const { method, path, id } = ctx.request;
+        //const { status = 'n/a' } = ctx.response;
+        //const processTime = ((Date.now() - ctx.state.receivedAt) / 1000).toFixed(1);
+        // Disabled verbose response logging
+        // ctx.state.logger.info(`[<== ${status}] ${method?.toUpperCase()} ${path} [${processTime}sec] - requestId: ${id}`);
     }
 };
 
