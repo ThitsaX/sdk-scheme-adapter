@@ -150,7 +150,7 @@ const postTransfers = async (ctx) => {
             ...ctx.request.body
         };
 
-        console.log('post Transfers Request:', transferRequest);
+        ctx.state.logger.isDebugEnabled && ctx.state.logger.debug('Post transfers request', { transferRequest });
 
         // use the transfers model to execute asynchronous stages with the switch
         const model = createOutboundTransfersModel(ctx);
@@ -160,7 +160,7 @@ const postTransfers = async (ctx) => {
         const response = await model.run();
 
         // return the result
-        console.log('post Transfers Response:', response);
+        ctx.state.logger.isDebugEnabled && ctx.state.logger.debug('Post transfers response', { response });
         ctx.response.status = ReturnCodes.OK.CODE;
         ctx.response.body = response;
     }
@@ -176,24 +176,22 @@ const getTransfers = async (ctx) => {
     try {
         const transferId = ctx.state.path.params.transferId;
 
-        console.log('getTransfers -> transferId', transferId);
+        ctx.state.logger.isDebugEnabled && ctx.state.logger.debug('Get transfer by ID', { transferId });
 
-       
+
         const model = createOutboundTransfersModel(ctx);
-        console.log('before load', transferId);
         try {
             await model.load(transferId);
         } catch (loadErr) {
-            console.error('Transfer not found:', loadErr);
+            ctx.state.logger.isWarnEnabled && ctx.state.logger.warn('Transfer not found', { transferId, error: loadErr.message });
 
             ctx.response.status =  ReturnCodes.NOTFOUND.CODE;
             ctx.response.body = {
-                statusCode: "3208",
-                message: "Transfer ID not found"
+                statusCode: '3208',
+                message: 'Transfer ID not found'
             };
             return;
         }
-        console.log('after await model', model);
         ctx.response.status = ReturnCodes.OK.CODE;
         ctx.response.body = {
             transferId: model.data.transferId,
@@ -201,7 +199,7 @@ const getTransfers = async (ctx) => {
             direction: model.data.direction
         };
 
-        console.log('getTransfers response:', ctx.response.body);
+        ctx.state.logger.isDebugEnabled && ctx.state.logger.debug('Get transfer response', { response: ctx.response.body });
 
     } catch (err) {
         return handleTransferError('getTransfers', err, ctx);
@@ -217,17 +215,18 @@ const putTransfers = async (ctx) => {
     try {
         // this requires a multi-stage sequence with the switch.
         // use the transfers model to execute asynchronous stages with the switch
-       console.log(`put Transfers Request: ${ctx.state.path.params.transferId} : ${JSON.stringify(ctx.request.body)}`);
+        const transferId = ctx.state.path.params.transferId;
+        ctx.state.logger.isDebugEnabled && ctx.state.logger.debug('Put transfers request', { transferId, body: ctx.request.body });
         const model = createOutboundTransfersModel(ctx);
 
         // TODO: check the incoming body to reject party or quote when requested to do so
 
         // load the transfer model from cache and start it running again
-        await model.load(ctx.state.path.params.transferId);
+        await model.load(transferId);
 
         const response = await model.run(ctx.request.body);
 
-        console.log(`put Transfers Response: ${ctx.state.path.params.transferId} : ${JSON.stringify(response)}`);
+        ctx.state.logger.isDebugEnabled && ctx.state.logger.debug('Put transfers response', { transferId, response });
 
         // return the result
         ctx.response.status = ReturnCodes.OK.CODE;
@@ -630,18 +629,18 @@ const getPartiesByTypeAndId = async (ctx) => {
         const model = await PartiesModel.create({}, cacheKey, modelConfig);
 
         // run model's workflow
-        console.log("Get Parties Request from Payer cc: ", args);
+        ctx.state.logger.isDebugEnabled && ctx.state.logger.debug('Get Parties Request from Payer cc', { args });
         const response = await model.run(args);
 
-    
+
         // return the result
         if (response.errorInformation) {
             ctx.response.status = ReturnCodes.NOTFOUND.CODE;
-                console.log("Get Parties Error Response to Payer cc: ", response.errorInformation);
+            ctx.state.logger.isWarnEnabled && ctx.state.logger.warn('Get Parties Error Response to Payer cc', { errorInformation: response.errorInformation });
         } else {
             ctx.response.status = ReturnCodes.OK.CODE;
         }
-          console.log("Get Parties Success Response to Payer cc: ", ctx.response.body);
+        ctx.state.logger.isDebugEnabled && ctx.state.logger.debug('Get Parties Success Response to Payer cc', { response: ctx.response.body });
         ctx.response.body = response;
     } catch (err) {
         return handleRequestPartiesInformationError('getPartiesByTypeAndId', err, ctx);
@@ -669,10 +668,10 @@ const postQuotes = async (ctx) => {
         const model = await QuotesModel.create({}, cacheKey, modelConfig);
 
         // run model's workflow
-         console.log("Post Quote Request from Payer cc: ", args);
+        ctx.state.logger.isDebugEnabled && ctx.state.logger.debug('Post Quote Request from Payer cc', { args });
         const response = await model.run(args);
 
-         console.log("Post Quote Response from Payer cc: ", response);
+        ctx.state.logger.isDebugEnabled && ctx.state.logger.debug('Post Quote Response to Payer cc', { response });
         // return the result
         ctx.response.status = ReturnCodes.OK.CODE;
         ctx.response.body = response;
