@@ -158,7 +158,7 @@ class OutboundTransfersModel {
                 const result = await requestFn();
 
                 if (attempt > 0) {
-                    this._logger.info('TWDebug_=== RETRY SUCCESS ===', {
+                    this._logger.info('TWDebug: RETRY SUCCESS', {
                         requestType,
                         transferId,
                         attempt,
@@ -175,7 +175,7 @@ class OutboundTransfersModel {
                 if (is401 && attempt < maxRetries) {
                     const waitMs = Math.min(1000 * Math.pow(2, attempt), 5000); // Exponential backoff: 1s, 2s, 4s (max 5s)
 
-                    this._logger.warn('TWDebug_=== RETRYING 401 ERROR ===', {
+                    this._logger.warn('TWDebug: RETRYING 401 ERROR', {
                         requestType,
                         transferId,
                         attempt: attempt + 1,
@@ -193,7 +193,7 @@ class OutboundTransfersModel {
 
                 // Log final failure if we've exhausted retries or it's not a 401
                 if (is401 && attempt === maxRetries) {
-                    this._logger.error('TWDebug_=== RETRY EXHAUSTED ===', {
+                    this._logger.error('TWDebug: RETRY EXHAUSTED', {
                         requestType,
                         transferId,
                         totalAttempts: attempt + 1,
@@ -515,14 +515,6 @@ class OutboundTransfersModel {
             // a GET /parties request to the switch
             try {
                 latencyTimerDone = this.metrics.partyLookupLatency.startTimer();
-                const headers = this.#createOtelHeaders();
-                this._logger.isInfoEnabled && this._logger.info('CHECK TOKEN PARTY: ', {
-                    transferId: this.data.transferId,
-                    type: this.data.to.idType,
-                    id: this.data.to.idValue,
-                    subId: this.data.to.idSubValue,
-                    headers
-                });
 
                 // Wrap getParties request with retry logic for 401 errors
                 const res = await this._requestWithRetry(
@@ -531,7 +523,7 @@ class OutboundTransfersModel {
                         this.data.to.idValue,
                         this.data.to.idSubValue,
                         this.data.to.fspId,
-                        headers
+                        this.#createOtelHeaders()
                     ),
                     {
                         requestType: 'getParties',
@@ -542,7 +534,7 @@ class OutboundTransfersModel {
                 this.data.getPartiesRequest = res.originalRequest;
 
                 // Log successful request headers for comparison
-                this._logger.info('TWDebug_=== PARTY LOOKUP SUCCESS ===', {
+                this._logger.info('TWDebug: PARTY LOOKUP SUCCESS', {
                     transferId: this.data.transferId,
                     partyType: this.data.to.idType,
                     partyId: this.data.to.idValue,
@@ -559,7 +551,7 @@ class OutboundTransfersModel {
                 // Log detailed error information, especially for 401 errors
                 const is401Error = err?.status === 401 || err?.response?.status === 401 || err?.code === 'ERR_BAD_REQUEST';
 
-                this._logger.error('TWDebug_=== PARTY LOOKUP ERROR ===', {
+                this._logger.error('TWDebug: PARTY LOOKUP ERROR', {
                     errorType: is401Error ? 'AUTHORIZATION_ERROR_401' : 'OTHER_ERROR',
                     errorStatus: err?.status || err?.response?.status || 'unknown',
                     errorCode: err?.code || 'unknown',
@@ -706,7 +698,7 @@ class OutboundTransfersModel {
                 // Log detailed error information, especially for 401 errors
                 const is401Error = err?.status === 401 || err?.response?.status === 401 || err?.code === 'ERR_BAD_REQUEST';
 
-                this._logger.error('TWDebug_=== BATCH PARTY LOOKUP ERROR ===', {
+                this._logger.error('TWDebug: BATCH PARTY LOOKUP ERROR', {
                     errorType: is401Error ? 'AUTHORIZATION_ERROR_401' : 'OTHER_ERROR',
                     errorStatus: err?.status || err?.response?.status || 'unknown',
                     errorCode: err?.code || 'unknown',
@@ -906,11 +898,10 @@ class OutboundTransfersModel {
             // a POST /quotes request to the switch
             try {
                 latencyTimerDone = this.metrics.quoteRequestLatency.startTimer();
-                const headers = this.#createOtelHeaders();
 
                 // Wrap postQuotes request with retry logic for 401 errors
                 const res = await this._requestWithRetry(
-                    () => this._requests.postQuotes(quote, this.data.to.fspId, headers),
+                    () => this._requests.postQuotes(quote, this.data.to.fspId, this.#createOtelHeaders()),
                     {
                         requestType: 'postQuotes',
                         transferId: this.data.transferId
@@ -918,7 +909,7 @@ class OutboundTransfersModel {
                 );
 
                 // Log the actual headers that were sent in the request
-                this._logger.info('TWDebug_=== POST-QUOTE REQUEST HEADERS SENT ===', {
+                this._logger.info('TWDebug: POST-QUOTE REQUEST HEADERS SENT', {
                     actualHeadersSent: res?.originalRequest?.headers || 'No headers captured',
                     hasAuthorizationHeader: !!(res?.originalRequest?.headers?.Authorization || res?.originalRequest?.headers?.authorization),
                     authorizationValue: res?.originalRequest?.headers?.Authorization || res?.originalRequest?.headers?.authorization || 'NOT PRESENT',
@@ -938,7 +929,7 @@ class OutboundTransfersModel {
                 // Log detailed error information, especially for 401 errors
                 const is401Error = err?.status === 401 || err?.response?.status === 401;
 
-                this._logger.error('TWDebug_=== QUOTE REQUEST ERROR ===', {
+                this._logger.error('TWDebug: QUOTE REQUEST ERROR', {
                     errorType: is401Error ? 'AUTHORIZATION_ERROR_401' : 'OTHER_ERROR',
                     errorStatus: err?.status || err?.response?.status || 'unknown',
                     errorMessage: err?.message || 'No message',
@@ -1186,14 +1177,13 @@ class OutboundTransfersModel {
             // a POST /transfers request to the switch
             try {
                 latencyTimerDone = this.metrics.transferLatency.startTimer();
-                const headers = this.#createOtelHeaders();
 
                 // Wrap postTransfers request with retry logic for 401 errors
                 let res;
                 if (this._apiType  === API_TYPES.iso20022) {
                     // Pass in quote request as context if needed for ISO20022 message generation
                     res = await this._requestWithRetry(
-                        () => this._requests.postTransfers(prepare, this.data.quoteResponseSource, headers, {
+                        () => this._requests.postTransfers(prepare, this.data.quoteResponseSource, this.#createOtelHeaders(), {
                             isoPostQuoteResponse: this.data.quoteResponse.originalIso20022QuoteResponse
                         }),
                         {
@@ -1203,7 +1193,7 @@ class OutboundTransfersModel {
                     );
                 } else {
                     res = await this._requestWithRetry(
-                        () => this._requests.postTransfers(prepare, this.data.quoteResponseSource, headers, {}),
+                        () => this._requests.postTransfers(prepare, this.data.quoteResponseSource, this.#createOtelHeaders(), {}),
                         {
                             requestType: 'postTransfers',
                             transferId: this.data.transferId
