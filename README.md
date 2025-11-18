@@ -35,7 +35,7 @@ You can also build it directly from source: [https://github.com/mojaloop/sdk-sch
 However, take note of the default argument in the [Dockerfile](./Dockerfile) for `NODE_VERSION`:
 
 ```dockerfile
-ARG NODE_VERSION=lts-alpine
+ARG NODE_VERSION=22.15.1-alpine3.21
 ```
 
 It is recommend that you set the `NODE_VERSION` argument against the version set in the local [.nvmrc](./.nvmrc).
@@ -43,7 +43,7 @@ It is recommend that you set the `NODE_VERSION` argument against the version set
 This can be done using the following command:
 
 ```bash
-export NODE_VERSION="$(cat .nvmrc)-alpine3.19"
+export NODE_VERSION="$(cat .nvmrc)-alpine3.21"
 
 docker build \
    --build-arg NODE_VERSION=$NODE_VERSION \
