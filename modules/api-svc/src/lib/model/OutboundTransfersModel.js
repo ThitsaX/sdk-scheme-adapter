@@ -145,6 +145,70 @@ class OutboundTransfersModel {
         this._logger.isDebugEnabled && this._logger.push(config.outbound.tls.creds).debug('OutboundTransfersModel is created with outbound.tls.creds');
     }
 
+    /**
+     * Retry wrapper for HTTP requests that may fail with 401 errors
+     * Implements exponential backoff with configurable max retries
+     */
+    async _requestWithRetry(requestFn, requestContext = {}, maxRetries = 2) {
+        const { requestType = 'unknown', transferId = this.data?.transferId } = requestContext;
+        let lastError;
+
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                const result = await requestFn();
+
+                if (attempt > 0) {
+                    this._logger.info('TWDebug_=== RETRY SUCCESS ===', {
+                        requestType,
+                        transferId,
+                        attempt,
+                        retriesTaken: attempt
+                    });
+                }
+
+                return result;
+            } catch (error) {
+                lastError = error;
+                const is401 = error?.status === 401 || error?.response?.status === 401;
+
+                // Only retry on 401 errors and if we have retries left
+                if (is401 && attempt < maxRetries) {
+                    const waitMs = Math.min(1000 * Math.pow(2, attempt), 5000); // Exponential backoff: 1s, 2s, 4s (max 5s)
+
+                    this._logger.warn('TWDebug_=== RETRYING 401 ERROR ===', {
+                        requestType,
+                        transferId,
+                        attempt: attempt + 1,
+                        maxRetries,
+                        waitMs,
+                        errorMessage: error?.message || 'No error message',
+                        errorStatus: error?.status || error?.response?.status,
+                        willRetry: true
+                    });
+
+                    // Wait before retrying to allow token refresh to complete
+                    await new Promise(resolve => setTimeout(resolve, waitMs));
+                    continue;
+                }
+
+                // Log final failure if we've exhausted retries or it's not a 401
+                if (is401 && attempt === maxRetries) {
+                    this._logger.error('TWDebug_=== RETRY EXHAUSTED ===', {
+                        requestType,
+                        transferId,
+                        totalAttempts: attempt + 1,
+                        maxRetries,
+                        finalError: error?.message || 'No error message',
+                        errorStatus: error?.status || error?.response?.status
+                    });
+                }
+
+                throw error;
+            }
+        }
+
+        throw lastError;
+    }
 
     /**
      * Initializes the internal state machine object
@@ -460,20 +524,72 @@ class OutboundTransfersModel {
                     headers
                 });
 
-                const res = await this._requests.getParties(
-                    this.data.to.idType,
-                    this.data.to.idValue,
-                    this.data.to.idSubValue,
-                    this.data.to.fspId,
-                    headers
+                // Wrap getParties request with retry logic for 401 errors
+                const res = await this._requestWithRetry(
+                    () => this._requests.getParties(
+                        this.data.to.idType,
+                        this.data.to.idValue,
+                        this.data.to.idSubValue,
+                        this.data.to.fspId,
+                        headers
+                    ),
+                    {
+                        requestType: 'getParties',
+                        transferId: this.data.transferId
+                    }
                 );
 
                 this.data.getPartiesRequest = res.originalRequest;
+
+                // Log successful request headers for comparison
+                this._logger.info('TWDebug_=== PARTY LOOKUP SUCCESS ===', {
+                    transferId: this.data.transferId,
+                    partyType: this.data.to.idType,
+                    partyId: this.data.to.idValue,
+                    requestHeaders: res.originalRequest?.headers || 'NO HEADERS',
+                    hasAuthorizationHeader: !!(res.originalRequest?.headers?.Authorization || res.originalRequest?.headers?.authorization),
+                    authorizationHeaderLength: (res.originalRequest?.headers?.Authorization || res.originalRequest?.headers?.authorization)?.length || 0,
+                    responseStatus: res?.statusCode || res?.status || 'unknown'
+                });
 
                 this.metrics.partyLookupRequests.inc();
                 this._logger.isDebugEnabled && this._logger.push({ peer: res }).debug('Party lookup sent to peer');
             }
             catch(err) {
+                // Log detailed error information, especially for 401 errors
+                const is401Error = err?.status === 401 || err?.response?.status === 401 || err?.code === 'ERR_BAD_REQUEST';
+
+                this._logger.error('TWDebug_=== PARTY LOOKUP ERROR ===', {
+                    errorType: is401Error ? 'AUTHORIZATION_ERROR_401' : 'OTHER_ERROR',
+                    errorStatus: err?.status || err?.response?.status || 'unknown',
+                    errorCode: err?.code || 'unknown',
+                    errorMessage: err?.message || 'unknown',
+                    transferId: this.data.transferId,
+                    partyType: this.data.to.idType,
+                    partyId: this.data.to.idValue,
+                    // CRITICAL: Log the actual request that was sent
+                    actualRequestSent: {
+                        url: err?.config?.url || err?.request?.url || 'unknown',
+                        method: err?.config?.method || err?.request?.method || 'unknown',
+                        baseURL: err?.config?.baseURL || 'unknown',
+                        headers: err?.config?.headers || err?.request?.headers || 'NO HEADERS CAPTURED',
+                        hasAuthorizationHeader: !!(err?.config?.headers?.Authorization || err?.config?.headers?.authorization),
+                        authorizationHeaderValue: err?.config?.headers?.Authorization || err?.config?.headers?.authorization || 'NOT PRESENT',
+                        authorizationHeaderLength: (err?.config?.headers?.Authorization || err?.config?.headers?.authorization)?.length || 0
+                    },
+                    // Also check if we stored it in this.data
+                    storedRequest: {
+                        headers: this.data.getPartiesRequest?.headers || 'NOT STORED YET',
+                        hasAuthInStored: !!(this.data.getPartiesRequest?.headers?.Authorization || this.data.getPartiesRequest?.headers?.authorization)
+                    },
+                    // Log response if available
+                    responseData: err?.response?.data || 'no response data',
+                    responseStatus: err?.response?.status || 'no response status',
+                    responseHeaders: err?.response?.headers || 'no response headers',
+                    // Full error for debugging
+                    fullErrorStack: err?.stack || safeStringify(err)
+                });
+
                 // cancel the timeout and unsubscribe before rejecting the promise
                 clearTimeout(timeout);
 
@@ -587,6 +703,37 @@ class OutboundTransfersModel {
                 this._logger.isErrorEnabled && this._logger.push({ peer: res }).error('Party lookup sent to peer');
             }
             catch(err) {
+                // Log detailed error information, especially for 401 errors
+                const is401Error = err?.status === 401 || err?.response?.status === 401 || err?.code === 'ERR_BAD_REQUEST';
+
+                this._logger.error('TWDebug_=== BATCH PARTY LOOKUP ERROR ===', {
+                    errorType: is401Error ? 'AUTHORIZATION_ERROR_401' : 'OTHER_ERROR',
+                    errorStatus: err?.status || err?.response?.status || 'unknown',
+                    errorCode: err?.code || 'unknown',
+                    errorMessage: err?.message || 'unknown',
+                    transferId: this.data.transferId,
+                    partyType: this.data.to.idType,
+                    partyId: this.data.to.idValue,
+                    // CRITICAL: Log the actual request that was sent
+                    actualRequestSent: {
+                        url: err?.config?.url || err?.request?.url || 'unknown',
+                        method: err?.config?.method || err?.request?.method || 'unknown',
+                        baseURL: err?.config?.baseURL || 'unknown',
+                        headers: err?.config?.headers || err?.request?.headers || 'NO HEADERS CAPTURED',
+                        hasAuthorizationHeader: !!(err?.config?.headers?.Authorization || err?.config?.headers?.authorization),
+                        authorizationHeaderValue: err?.config?.headers?.Authorization || err?.config?.headers?.authorization || 'NOT PRESENT',
+                        authorizationHeaderLength: (err?.config?.headers?.Authorization || err?.config?.headers?.authorization)?.length || 0
+                    },
+                    storedRequest: {
+                        headers: this.data.getPartiesRequest?.headers || 'NOT STORED YET',
+                        hasAuthInStored: !!(this.data.getPartiesRequest?.headers?.Authorization || this.data.getPartiesRequest?.headers?.authorization)
+                    },
+                    responseData: err?.response?.data || 'no response data',
+                    responseStatus: err?.response?.status || 'no response status',
+                    responseHeaders: err?.response?.headers || 'no response headers',
+                    fullErrorStack: err?.stack || safeStringify(err)
+                });
+
                 // cancel the timer before rejecting the promise
                 clearTimeout(timer);
                 return reject(err);
@@ -760,10 +907,24 @@ class OutboundTransfersModel {
             try {
                 latencyTimerDone = this.metrics.quoteRequestLatency.startTimer();
                 const headers = this.#createOtelHeaders();
-                this._logger.isInfoEnabled && this._logger.info('CHECK TOKEN QUOTE: ', {
-                    headers
+
+                // Wrap postQuotes request with retry logic for 401 errors
+                const res = await this._requestWithRetry(
+                    () => this._requests.postQuotes(quote, this.data.to.fspId, headers),
+                    {
+                        requestType: 'postQuotes',
+                        transferId: this.data.transferId
+                    }
+                );
+
+                // Log the actual headers that were sent in the request
+                this._logger.info('TWDebug_=== POST-QUOTE REQUEST HEADERS SENT ===', {
+                    actualHeadersSent: res?.originalRequest?.headers || 'No headers captured',
+                    hasAuthorizationHeader: !!(res?.originalRequest?.headers?.Authorization || res?.originalRequest?.headers?.authorization),
+                    authorizationValue: res?.originalRequest?.headers?.Authorization || res?.originalRequest?.headers?.authorization || 'NOT PRESENT',
+                    quoteId: quote?.quoteId,
+                    responseStatus: res?.statusCode || res?.status || 'unknown'
                 });
-                const res = await this._requests.postQuotes(quote, this.data.to.fspId, headers);
 
                 this.data.quoteRequest = {
                     body: quote,
@@ -774,6 +935,20 @@ class OutboundTransfersModel {
                 this._logger.isDebugEnabled && this._logger.push({ res }).debug('Quote request sent to peer');
             }
             catch (err) {
+                // Log detailed error information, especially for 401 errors
+                const is401Error = err?.status === 401 || err?.response?.status === 401;
+
+                this._logger.error('TWDebug_=== QUOTE REQUEST ERROR ===', {
+                    errorType: is401Error ? 'AUTHORIZATION_ERROR_401' : 'OTHER_ERROR',
+                    errorStatus: err?.status || err?.response?.status || 'unknown',
+                    errorMessage: err?.message || 'No message',
+                    quoteId: quote?.quoteId,
+                    transferId: this.data?.transferId,
+                    actualRequestHeaders: err?.config?.headers || 'Not available',
+                    hasAuthorizationHeader: !!(err?.config?.headers?.Authorization || err?.config?.headers?.authorization),
+                    errorDetails: safeStringify(err)
+                });
+
                 // cancel the timout and unsubscribe before rejecting the promise
                 clearTimeout(timeout);
 
@@ -802,13 +977,9 @@ class OutboundTransfersModel {
             expiration: this._getExpirationTimestamp()
         };
 
-        console.log('this.data.from', this.data.from);
         quote.payer = shared.internalPartyToMojaloopParty(this.data.from, this._dfspId);
-        console.log('quote.payer', quote.payer);
 
-        console.log('this.data.to', this.data.to)
         quote.payee = shared.internalPartyToMojaloopParty(this.data.to, this.data.to.fspId);
-        console.log('quote.payee', quote.payee);
 
         quote.transactionType = {
             scenario: this.data.transactionType,
@@ -1017,14 +1188,27 @@ class OutboundTransfersModel {
                 latencyTimerDone = this.metrics.transferLatency.startTimer();
                 const headers = this.#createOtelHeaders();
 
+                // Wrap postTransfers request with retry logic for 401 errors
                 let res;
                 if (this._apiType  === API_TYPES.iso20022) {
                     // Pass in quote request as context if needed for ISO20022 message generation
-                    res = await this._requests.postTransfers(prepare, this.data.quoteResponseSource, headers, {
-                        isoPostQuoteResponse: this.data.quoteResponse.originalIso20022QuoteResponse
-                    });
+                    res = await this._requestWithRetry(
+                        () => this._requests.postTransfers(prepare, this.data.quoteResponseSource, headers, {
+                            isoPostQuoteResponse: this.data.quoteResponse.originalIso20022QuoteResponse
+                        }),
+                        {
+                            requestType: 'postTransfers',
+                            transferId: this.data.transferId
+                        }
+                    );
                 } else {
-                    res = await this._requests.postTransfers(prepare, this.data.quoteResponseSource, headers, {});
+                    res = await this._requestWithRetry(
+                        () => this._requests.postTransfers(prepare, this.data.quoteResponseSource, headers, {}),
+                        {
+                            requestType: 'postTransfers',
+                            transferId: this.data.transferId
+                        }
+                    );
                 }
 
                 this.data.prepare = {
