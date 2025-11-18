@@ -533,55 +533,10 @@ class OutboundTransfersModel {
 
                 this.data.getPartiesRequest = res.originalRequest;
 
-                // Log successful request headers for comparison
-                this._logger.info('TWDebug: PARTY LOOKUP SUCCESS', {
-                    transferId: this.data.transferId,
-                    partyType: this.data.to.idType,
-                    partyId: this.data.to.idValue,
-                    requestHeaders: res.originalRequest?.headers || 'NO HEADERS',
-                    hasAuthorizationHeader: !!(res.originalRequest?.headers?.Authorization || res.originalRequest?.headers?.authorization),
-                    authorizationHeaderLength: (res.originalRequest?.headers?.Authorization || res.originalRequest?.headers?.authorization)?.length || 0,
-                    responseStatus: res?.statusCode || res?.status || 'unknown'
-                });
-
                 this.metrics.partyLookupRequests.inc();
                 this._logger.isDebugEnabled && this._logger.push({ peer: res }).debug('Party lookup sent to peer');
             }
             catch(err) {
-                // Log detailed error information, especially for 401 errors
-                const is401Error = err?.status === 401 || err?.response?.status === 401 || err?.code === 'ERR_BAD_REQUEST';
-
-                this._logger.error('TWDebug: PARTY LOOKUP ERROR', {
-                    errorType: is401Error ? 'AUTHORIZATION_ERROR_401' : 'OTHER_ERROR',
-                    errorStatus: err?.status || err?.response?.status || 'unknown',
-                    errorCode: err?.code || 'unknown',
-                    errorMessage: err?.message || 'unknown',
-                    transferId: this.data.transferId,
-                    partyType: this.data.to.idType,
-                    partyId: this.data.to.idValue,
-                    // CRITICAL: Log the actual request that was sent
-                    actualRequestSent: {
-                        url: err?.config?.url || err?.request?.url || 'unknown',
-                        method: err?.config?.method || err?.request?.method || 'unknown',
-                        baseURL: err?.config?.baseURL || 'unknown',
-                        headers: err?.config?.headers || err?.request?.headers || 'NO HEADERS CAPTURED',
-                        hasAuthorizationHeader: !!(err?.config?.headers?.Authorization || err?.config?.headers?.authorization),
-                        authorizationHeaderValue: err?.config?.headers?.Authorization || err?.config?.headers?.authorization || 'NOT PRESENT',
-                        authorizationHeaderLength: (err?.config?.headers?.Authorization || err?.config?.headers?.authorization)?.length || 0
-                    },
-                    // Also check if we stored it in this.data
-                    storedRequest: {
-                        headers: this.data.getPartiesRequest?.headers || 'NOT STORED YET',
-                        hasAuthInStored: !!(this.data.getPartiesRequest?.headers?.Authorization || this.data.getPartiesRequest?.headers?.authorization)
-                    },
-                    // Log response if available
-                    responseData: err?.response?.data || 'no response data',
-                    responseStatus: err?.response?.status || 'no response status',
-                    responseHeaders: err?.response?.headers || 'no response headers',
-                    // Full error for debugging
-                    fullErrorStack: err?.stack || safeStringify(err)
-                });
-
                 // cancel the timeout and unsubscribe before rejecting the promise
                 clearTimeout(timeout);
 
@@ -695,36 +650,6 @@ class OutboundTransfersModel {
                 this._logger.isErrorEnabled && this._logger.push({ peer: res }).error('Party lookup sent to peer');
             }
             catch(err) {
-                // Log detailed error information, especially for 401 errors
-                const is401Error = err?.status === 401 || err?.response?.status === 401 || err?.code === 'ERR_BAD_REQUEST';
-
-                this._logger.error('TWDebug: BATCH PARTY LOOKUP ERROR', {
-                    errorType: is401Error ? 'AUTHORIZATION_ERROR_401' : 'OTHER_ERROR',
-                    errorStatus: err?.status || err?.response?.status || 'unknown',
-                    errorCode: err?.code || 'unknown',
-                    errorMessage: err?.message || 'unknown',
-                    transferId: this.data.transferId,
-                    partyType: this.data.to.idType,
-                    partyId: this.data.to.idValue,
-                    // CRITICAL: Log the actual request that was sent
-                    actualRequestSent: {
-                        url: err?.config?.url || err?.request?.url || 'unknown',
-                        method: err?.config?.method || err?.request?.method || 'unknown',
-                        baseURL: err?.config?.baseURL || 'unknown',
-                        headers: err?.config?.headers || err?.request?.headers || 'NO HEADERS CAPTURED',
-                        hasAuthorizationHeader: !!(err?.config?.headers?.Authorization || err?.config?.headers?.authorization),
-                        authorizationHeaderValue: err?.config?.headers?.Authorization || err?.config?.headers?.authorization || 'NOT PRESENT',
-                        authorizationHeaderLength: (err?.config?.headers?.Authorization || err?.config?.headers?.authorization)?.length || 0
-                    },
-                    storedRequest: {
-                        headers: this.data.getPartiesRequest?.headers || 'NOT STORED YET',
-                        hasAuthInStored: !!(this.data.getPartiesRequest?.headers?.Authorization || this.data.getPartiesRequest?.headers?.authorization)
-                    },
-                    responseData: err?.response?.data || 'no response data',
-                    responseStatus: err?.response?.status || 'no response status',
-                    responseHeaders: err?.response?.headers || 'no response headers',
-                    fullErrorStack: err?.stack || safeStringify(err)
-                });
 
                 // cancel the timer before rejecting the promise
                 clearTimeout(timer);
@@ -908,15 +833,6 @@ class OutboundTransfersModel {
                     }
                 );
 
-                // Log the actual headers that were sent in the request
-                this._logger.info('TWDebug: POST-QUOTE REQUEST HEADERS SENT', {
-                    actualHeadersSent: res?.originalRequest?.headers || 'No headers captured',
-                    hasAuthorizationHeader: !!(res?.originalRequest?.headers?.Authorization || res?.originalRequest?.headers?.authorization),
-                    authorizationValue: res?.originalRequest?.headers?.Authorization || res?.originalRequest?.headers?.authorization || 'NOT PRESENT',
-                    quoteId: quote?.quoteId,
-                    responseStatus: res?.statusCode || res?.status || 'unknown'
-                });
-
                 this.data.quoteRequest = {
                     body: quote,
                     headers: res.originalRequest.headers
@@ -926,20 +842,6 @@ class OutboundTransfersModel {
                 this._logger.isDebugEnabled && this._logger.push({ res }).debug('Quote request sent to peer');
             }
             catch (err) {
-                // Log detailed error information, especially for 401 errors
-                const is401Error = err?.status === 401 || err?.response?.status === 401;
-
-                this._logger.error('TWDebug: QUOTE REQUEST ERROR', {
-                    errorType: is401Error ? 'AUTHORIZATION_ERROR_401' : 'OTHER_ERROR',
-                    errorStatus: err?.status || err?.response?.status || 'unknown',
-                    errorMessage: err?.message || 'No message',
-                    quoteId: quote?.quoteId,
-                    transferId: this.data?.transferId,
-                    actualRequestHeaders: err?.config?.headers || 'Not available',
-                    hasAuthorizationHeader: !!(err?.config?.headers?.Authorization || err?.config?.headers?.authorization),
-                    errorDetails: safeStringify(err)
-                });
-
                 // cancel the timout and unsubscribe before rejecting the promise
                 clearTimeout(timeout);
 
