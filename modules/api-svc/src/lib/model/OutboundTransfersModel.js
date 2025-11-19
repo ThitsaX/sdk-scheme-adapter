@@ -145,6 +145,70 @@ class OutboundTransfersModel {
         this._logger.isDebugEnabled && this._logger.push(config.outbound.tls.creds).debug('OutboundTransfersModel is created with outbound.tls.creds');
     }
 
+    /**
+     * Retry wrapper for HTTP requests that may fail with 401 errors
+     * Implements exponential backoff with configurable max retries
+     */
+    async _requestWithRetry(requestFn, requestContext = {}, maxRetries = 2) {
+        const { requestType = 'unknown', transferId = this.data?.transferId } = requestContext;
+        let lastError;
+
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                const result = await requestFn();
+
+                if (attempt > 0) {
+                    this._logger.info('TWDebug: RETRY SUCCESS', {
+                        requestType,
+                        transferId,
+                        attempt,
+                        retriesTaken: attempt
+                    });
+                }
+
+                return result;
+            } catch (error) {
+                lastError = error;
+                const is401 = error?.status === 401 || error?.response?.status === 401;
+
+                // Only retry on 401 errors and if we have retries left
+                if (is401 && attempt < maxRetries) {
+                    const waitMs = Math.min(1000 * Math.pow(2, attempt), 5000); // Exponential backoff: 1s, 2s, 4s (max 5s)
+
+                    this._logger.warn('TWDebug: RETRYING 401 ERROR', {
+                        requestType,
+                        transferId,
+                        attempt: attempt + 1,
+                        maxRetries,
+                        waitMs,
+                        errorMessage: error?.message || 'No error message',
+                        errorStatus: error?.status || error?.response?.status,
+                        willRetry: true
+                    });
+
+                    // Wait before retrying to allow token refresh to complete
+                    await new Promise(resolve => setTimeout(resolve, waitMs));
+                    continue;
+                }
+
+                // Log final failure if we've exhausted retries or it's not a 401
+                if (is401 && attempt === maxRetries) {
+                    this._logger.error('TWDebug: RETRY EXHAUSTED', {
+                        requestType,
+                        transferId,
+                        totalAttempts: attempt + 1,
+                        maxRetries,
+                        finalError: error?.message || 'No error message',
+                        errorStatus: error?.status || error?.response?.status
+                    });
+                }
+
+                throw error;
+            }
+        }
+
+        throw lastError;
+    }
 
     /**
      * Initializes the internal state machine object
@@ -451,12 +515,20 @@ class OutboundTransfersModel {
             // a GET /parties request to the switch
             try {
                 latencyTimerDone = this.metrics.partyLookupLatency.startTimer();
-                const res = await this._requests.getParties(
-                    this.data.to.idType,
-                    this.data.to.idValue,
-                    this.data.to.idSubValue,
-                    this.data.to.fspId,
-                    this.#createOtelHeaders()
+
+                // Wrap getParties request with retry logic for 401 errors
+                const res = await this._requestWithRetry(
+                    () => this._requests.getParties(
+                        this.data.to.idType,
+                        this.data.to.idValue,
+                        this.data.to.idSubValue,
+                        this.data.to.fspId,
+                        this.#createOtelHeaders()
+                    ),
+                    {
+                        requestType: 'getParties',
+                        transferId: this.data.transferId
+                    }
                 );
 
                 this.data.getPartiesRequest = res.originalRequest;
@@ -578,6 +650,7 @@ class OutboundTransfersModel {
                 this._logger.isErrorEnabled && this._logger.push({ peer: res }).error('Party lookup sent to peer');
             }
             catch(err) {
+
                 // cancel the timer before rejecting the promise
                 clearTimeout(timer);
                 return reject(err);
@@ -750,7 +823,15 @@ class OutboundTransfersModel {
             // a POST /quotes request to the switch
             try {
                 latencyTimerDone = this.metrics.quoteRequestLatency.startTimer();
-                const res = await this._requests.postQuotes(quote, this.data.to.fspId, this.#createOtelHeaders());
+
+                // Wrap postQuotes request with retry logic for 401 errors
+                const res = await this._requestWithRetry(
+                    () => this._requests.postQuotes(quote, this.data.to.fspId, this.#createOtelHeaders()),
+                    {
+                        requestType: 'postQuotes',
+                        transferId: this.data.transferId
+                    }
+                );
 
                 this.data.quoteRequest = {
                     body: quote,
@@ -789,13 +870,9 @@ class OutboundTransfersModel {
             expiration: this._getExpirationTimestamp()
         };
 
-        console.log('this.data.from', this.data.from);
         quote.payer = shared.internalPartyToMojaloopParty(this.data.from, this._dfspId);
-        console.log('quote.payer', quote.payer);
 
-        console.log('this.data.to', this.data.to)
         quote.payee = shared.internalPartyToMojaloopParty(this.data.to, this.data.to.fspId);
-        console.log('quote.payee', quote.payee);
 
         quote.transactionType = {
             scenario: this.data.transactionType,
@@ -1002,16 +1079,28 @@ class OutboundTransfersModel {
             // a POST /transfers request to the switch
             try {
                 latencyTimerDone = this.metrics.transferLatency.startTimer();
-                const headers = this.#createOtelHeaders();
 
+                // Wrap postTransfers request with retry logic for 401 errors
                 let res;
                 if (this._apiType  === API_TYPES.iso20022) {
                     // Pass in quote request as context if needed for ISO20022 message generation
-                    res = await this._requests.postTransfers(prepare, this.data.quoteResponseSource, headers, {
-                        isoPostQuoteResponse: this.data.quoteResponse.originalIso20022QuoteResponse
-                    });
+                    res = await this._requestWithRetry(
+                        () => this._requests.postTransfers(prepare, this.data.quoteResponseSource, this.#createOtelHeaders(), {
+                            isoPostQuoteResponse: this.data.quoteResponse.originalIso20022QuoteResponse
+                        }),
+                        {
+                            requestType: 'postTransfers',
+                            transferId: this.data.transferId
+                        }
+                    );
                 } else {
-                    res = await this._requests.postTransfers(prepare, this.data.quoteResponseSource, headers, {});
+                    res = await this._requestWithRetry(
+                        () => this._requests.postTransfers(prepare, this.data.quoteResponseSource, this.#createOtelHeaders(), {}),
+                        {
+                            requestType: 'postTransfers',
+                            transferId: this.data.transferId
+                        }
+                    );
                 }
 
                 this.data.prepare = {
