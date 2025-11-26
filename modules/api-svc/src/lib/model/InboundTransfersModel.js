@@ -123,6 +123,71 @@ class InboundTransfersModel {
         };
     }
 
+    /**
+     * Retry wrapper for HTTP requests that may fail with 401 errors
+     * Implements exponential backoff with configurable max retries
+     */
+    async _requestWithRetry(requestFn, requestContext = {}, maxRetries = 2) {
+        const { requestType = 'unknown', id = 'N/A' } = requestContext;
+        let lastError;
+
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                const result = await requestFn();
+
+                if (attempt > 0) {
+                    this._logger.info('TWDebug: RETRY SUCCESS', {
+                        requestType,
+                        id,
+                        attempt,
+                        retriesTaken: attempt
+                    });
+                }
+
+                return result;
+            } catch (error) {
+                lastError = error;
+                const is401 = error?.status === 401 || error?.response?.status === 401;
+
+                // Only retry on 401 errors and if we have retries left
+                if (is401 && attempt < maxRetries) {
+                    const waitMs = Math.min(1000 * Math.pow(2, attempt), 5000); // Exponential backoff: 1s, 2s, 4s (max 5s)
+
+                    this._logger.warn('TWDebug: RETRYING 401 ERROR', {
+                        requestType,
+                        id,
+                        attempt: attempt + 1,
+                        maxRetries,
+                        waitMs,
+                        errorMessage: error?.message || 'No error message',
+                        errorStatus: error?.status || error?.response?.status,
+                        willRetry: true
+                    });
+
+                    // Wait before retrying to allow token refresh to complete
+                    await new Promise(resolve => setTimeout(resolve, waitMs));
+                    continue;
+                }
+
+                // Log final failure if we've exhausted retries or it's not a 401
+                if (is401 && attempt === maxRetries) {
+                    this._logger.error('TWDebug: RETRY EXHAUSTED', {
+                        requestType,
+                        id,
+                        totalAttempts: attempt + 1,
+                        maxRetries,
+                        finalError: error?.message || 'No error message',
+                        errorStatus: error?.status || error?.response?.status
+                    });
+                }
+
+                throw error;
+            }
+        }
+
+        throw lastError;
+    }
+
     updateStateWithError(err) {
         this.data.lastError = err;
         this.data.currentState = SDKStateEnum.ERROR_OCCURRED;
@@ -151,8 +216,14 @@ class InboundTransfersModel {
                 },
                 responseType: 'ENTERED'
             };
-            // make a callback to the source fsp with the party info
-            return this._mojaloopRequests.putAuthorizations(transactionRequestId, mlAuthorization, sourceFspId);
+            // Wrap putAuthorizations request with retry logic for 401 errors
+            return await this._requestWithRetry(
+                () => this._mojaloopRequests.putAuthorizations(transactionRequestId, mlAuthorization, sourceFspId),
+                {
+                    requestType: 'putAuthorizations',
+                    id: transactionRequestId
+                }
+            );
         }
         catch (err) {
             this._logger.isErrorEnabled && this._logger.push({ err, transactionRequestId }).error('Error in getOTP');
@@ -175,14 +246,20 @@ class InboundTransfersModel {
                 return 'No response from backend';
             }
 
-            // make a callback to the source fsp with our dfspId indicating we own the party
-            return this._mojaloopRequests.putParticipants(
-                idType,
-                idValue,
-                idSubValue,
-                { fspId: this._dfspId },
-                sourceFspId,
-                headers
+            // Wrap putParticipants request with retry logic for 401 errors
+            return await this._requestWithRetry(
+                () => this._mojaloopRequests.putParticipants(
+                    idType,
+                    idValue,
+                    idSubValue,
+                    { fspId: this._dfspId },
+                    sourceFspId,
+                    headers
+                ),
+                {
+                    requestType: 'putParticipants',
+                    id: idValue
+                }
             );
         }
         catch (err) {
@@ -215,7 +292,8 @@ class InboundTransfersModel {
                 }
                 return 'No response from backend';
             }
-            console.log("get party response from backend: ", response);
+
+            this._logger.isDebugEnabled && this._logger.push({ response }).debug('Get party response from backend');
 
             // project our internal party representation into a mojaloop parties request body
             const mlParty = {
@@ -226,14 +304,21 @@ class InboundTransfersModel {
                 headers.tracestate += `,${TRACESTATE_KEY_CALLBACK_START_TS}=${Date.now()}`;
             }
 
-            const result = await this._mojaloopRequests.putParties(idType, idValue, idSubValue, mlParty, sourceFspId, headers);
-            
+            // Wrap putParties request with retry logic for 401 errors
+            const result = await this._requestWithRetry(
+                () => this._mojaloopRequests.putParties(idType, idValue, idSubValue, mlParty, sourceFspId, headers),
+                {
+                    requestType: 'putParties',
+                    id: idValue
+                }
+            );
+
             // Stop timer and increment response counter on success
             if (latencyTimerDone) {
                 latencyTimerDone();
             }
             this.metrics.partyLookupResponses.inc();
-            
+
             return result;
         }
         catch (err) {
@@ -254,10 +339,9 @@ class InboundTransfersModel {
      * the result
      */
     async quoteRequest(request, sourceFspId, headers = {}) {
-
-        console.log("quoteRequest:", request);
-        console.log("quoteRequest payee:", request.body.payee);
         const quoteRequest = request.body;
+
+        this._logger.isDebugEnabled && this._logger.push({ request, payee: request.body.payee }).debug('Received quote request');
 
         // Start timing and increment request counter
         let latencyTimerDone;
@@ -295,7 +379,7 @@ class InboundTransfersModel {
             // make a call to the backend to ask for a quote response
             const response = await this._backendRequests.postQuoteRequests(internalForm);
 
-            console.log("quote response from backend: ", response);
+            this._logger.isDebugEnabled && this._logger.push({ response }).debug('Quote response from backend');
            
 
             if (!response) {
@@ -316,7 +400,8 @@ class InboundTransfersModel {
 
             mojaloopResponse.ilpPacket = ilpPacket;
             mojaloopResponse.condition = condition;
-            console.log("this.data for quote: ", this.data);
+
+            this._logger.isDebugEnabled && this._logger.push({ data: this.data }).debug('Quote data state');
 
             // now store the fulfilment and the quote data against the quoteId in our cache
             this.data.quote = {
@@ -337,7 +422,15 @@ class InboundTransfersModel {
             if (headers.tracestate && headers.traceparent) {
                 headers.tracestate += `,${TRACESTATE_KEY_CALLBACK_START_TS}=${Date.now()}`;
             }
-            const res = await this._mojaloopRequests.putQuotes(quoteRequest.quoteId, mojaloopResponse, sourceFspId, headers, { isoPostQuote: request.isoPostQuote });
+
+            // Wrap putQuotes request with retry logic for 401 errors
+            const res = await this._requestWithRetry(
+                () => this._mojaloopRequests.putQuotes(quoteRequest.quoteId, mojaloopResponse, sourceFspId, headers, { isoPostQuote: request.isoPostQuote }),
+                {
+                    requestType: 'putQuotes',
+                    id: quoteRequest.quoteId
+                }
+            );
 
             this.data.quoteResponse = {
                 headers: res.originalRequest?.headers,
@@ -546,7 +639,7 @@ class InboundTransfersModel {
             // make a call to the backend to inform it of the incoming transfer
             const response = await this._backendRequests.postTransfers(internalForm);
 
-            console.log("response from cc:", response);
+            this._logger.isDebugEnabled && this._logger.push({ response }).debug('Transfer response from backend');
 
             if (!response) {
                 // make an error callback to the source fsp
@@ -571,9 +664,15 @@ class InboundTransfersModel {
 
             };
 
-            // make a callback to the source fsp with the transfer fulfilment
-            const res = await this._mojaloopRequests.putTransfers(
-                prepareRequest.transferId, mojaloopResponse, sourceFspId, headers
+            // Wrap putTransfers request with retry logic for 401 errors
+            const res = await this._requestWithRetry(
+                () => this._mojaloopRequests.putTransfers(
+                    prepareRequest.transferId, mojaloopResponse, sourceFspId, headers
+                ),
+                {
+                    requestType: 'putTransfers',
+                    id: prepareRequest.transferId
+                }
             );
 
             this.data.fulfil = {
@@ -650,8 +749,14 @@ class InboundTransfersModel {
                 },
             };
 
-            // make a callback to the source fsp with the transfer fulfilment
-            return this._mojaloopRequests.putTransfers(transferId, mojaloopResponse, sourceFspId, headers);
+            // Wrap putTransfers request with retry logic for 401 errors
+            return await this._requestWithRetry(
+                () => this._mojaloopRequests.putTransfers(transferId, mojaloopResponse, sourceFspId, headers),
+                {
+                    requestType: 'putTransfers',
+                    id: transferId
+                }
+            );
         }
         catch (err) {
             this._logger.isErrorEnabled && this._logger.push({ err, transferId }).error('Error in getTransfers');
@@ -691,7 +796,14 @@ class InboundTransfersModel {
             };
             await this.saveFxState();
 
-            const res = await this._mojaloopRequests.putFxQuotes(body.conversionRequestId, mojaloopResponse, sourceFspId, headers);
+            // Wrap putFxQuotes request with retry logic for 401 errors
+            const res = await this._requestWithRetry(
+                () => this._mojaloopRequests.putFxQuotes(body.conversionRequestId, mojaloopResponse, sourceFspId, headers),
+                {
+                    requestType: 'putFxQuotes',
+                    id: body.conversionRequestId
+                }
+            );
 
             this.data.fxQuoteResponse = {
                 headers: res.originalRequest.headers,
@@ -1102,7 +1214,7 @@ class InboundTransfersModel {
             // tag the final notification body on to the state
             this.data.finalNotification = body;
 
-            console.log("this.data ", this.data);
+            this._logger.isDebugEnabled && this._logger.push({ data: this.data }).debug('Transfer data state before processing final notification');
 
             if (body.transferState === FSPIOPTransferStateEnum.COMMITTED) {
                 // if the transfer was successful in the switch, set the overall transfer state to COMPLETED
@@ -1121,10 +1233,8 @@ class InboundTransfersModel {
 
             await this._save();
 
-            var notificationError = false;
-
             try {
-                console.log("putTransferData:", this.data);
+                this._logger.isDebugEnabled && this._logger.push({ transferData: this.data }).debug('Sending transfer notification to backend');
                 const res = await this._backendRequests.putTransfersNotification(this.data, transferId);
 
                 this.data.currentState = SDKStateEnum.COMPLETED;
@@ -1132,15 +1242,13 @@ class InboundTransfersModel {
                 this.data.homeTransactionId = res.homeTransactionId;
 
                 await this._save();
-                console.log("res between try: ", res);
+                this._logger.isDebugEnabled && this._logger.push({ response: res }).debug('Transfer notification response from backend');
             }
             catch (err) {
-
                 this.data.currentState = SDKStateEnum.ERROR_OCCURRED;
                 this.data.lastError = 'Problem occurred while sending notification to Payee backend';
                 await this._save();
-                 console.log("After save: ");
-                return res;
+                this._logger.isErrorEnabled && this._logger.push({ err }).error('Error after saving notification failure state');
             }
 
 
