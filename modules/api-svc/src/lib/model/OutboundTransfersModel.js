@@ -1327,7 +1327,7 @@ class OutboundTransfersModel {
             const modifiedData = this._modifyDataForUi(this.data);
             // save to a UI key, using a modifiedData, as we don't want any side effects to happen on original data
             // No ttl set as it will persist throughout the session
-            
+
             //await this._cache.set(`transferUI_out_${this.data.transferId}`, modifiedData);
             //this._logger.isDebugEnabled && this._logger.push({ res }).debug('Persisted transfer model in cache');
         }
@@ -1430,7 +1430,7 @@ class OutboundTransfersModel {
                 // first remove any merge keys that we do not want to allow to be changed
                 // note that we could do this in the swagger also. this is to put a responsibility
                 // on this model to defend itself.
-                const permittedMergeKeys = ['homeTransactionId', 'acceptParty', 'acceptConversion', 'acceptQuote', 'acceptQuoteOrConversion', 'amount', 'to'];
+                const permittedMergeKeys = ['homeTransactionId', 'acceptParty', 'acceptConversion', 'acceptQuote', 'acceptQuoteOrConversion', 'amount', 'to', 'extensionList'];
                 Object.keys(mergeData).forEach(k => {
                     if(permittedMergeKeys.indexOf(k) === -1) {
                         delete mergeData[k]; // try to avoid mutation of parameters
