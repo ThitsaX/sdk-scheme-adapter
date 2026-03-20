@@ -699,6 +699,57 @@ describe('OutboundTransfersModel Tests', () => {
         expect(result.quoteRequest.body.amount.amount).not.toEqual(initialAmount);
     });
 
+    test('Maps accept party extensionList into quoteRequestExtensions', async () => {
+        config.autoAcceptParty = false;
+        config.autoAcceptQuotes = false;
+
+        let model = new Model({
+            cache,
+            logger,
+            metricsClient,
+            ...config,
+        });
+
+        await model.initialize(JSON.parse(JSON.stringify(transferRequest)));
+
+        let resultPromise = model.run();
+        emitPartyCacheMessage(cache, payeeParty);
+        let result = await resultPromise;
+
+        expect(result.currentState).toBe(SDKStateEnum.WAITING_FOR_PARTY_ACCEPTANCE);
+        expect(StateMachine.__instance.state).toBe('payeeResolved');
+
+        const transferId = result.transferId;
+
+        model = new Model({
+            cache,
+            logger,
+            metricsClient,
+            ...config,
+        });
+
+        await model.load(transferId);
+
+        const expectedExtensionList = {
+            extension: [
+                { key: 'payerFee', value: 'cloud-trace' }
+            ]
+        };
+
+        const resume = {
+            acceptParty: true,
+            extensionList: JSON.parse(JSON.stringify(expectedExtensionList))
+        };
+
+        resultPromise = model.run(resume);
+        cache.publish(`qt_${model.data.quoteId}`, JSON.stringify(quoteResponse));
+        result = await resultPromise;
+
+        expect(result.currentState).toBe(SDKStateEnum.WAITING_FOR_QUOTE_ACCEPTANCE);
+        expect(StateMachine.__instance.state).toBe('quoteReceived');
+        expect(result.quoteRequest.body.extensionList).toEqual(expectedExtensionList);
+    });
+
     test('Allows change of payee party at accept party phase (round-robin support)', async () => {
         config.autoAcceptParty = false;
         config.autoAcceptQuotes = false;

@@ -52,6 +52,19 @@ const {
 
 const { TransferState } = Enum.Transfers;
 
+const getExtensionEntries = (extensionList) => {
+    if (!extensionList) {
+        return [];
+    }
+    if (Array.isArray(extensionList)) {
+        return extensionList;
+    }
+    if (Array.isArray(extensionList.extension)) {
+        return extensionList.extension;
+    }
+    return [];
+};
+
 /**
  *  Models the state machine and operations required for performing an outbound transfer
  */
@@ -1426,10 +1439,19 @@ class OutboundTransfersModel {
             // if we were passed a mergeData object...
             // merge it with our existing state, overwriting any existing matching root level keys
             if (mergeData) {
+                const extensionEntries = getExtensionEntries(mergeData.extensionList);
+                if (extensionEntries.length > 0) {
+                    if (mergeData.acceptParty === true && !mergeData.quoteRequestExtensions) {
+                        mergeData.quoteRequestExtensions = extensionEntries;
+                    }
+                    if ((mergeData.acceptQuote === true || mergeData.acceptQuoteOrConversion === true) && !mergeData.transferRequestExtensions) {
+                        mergeData.transferRequestExtensions = extensionEntries;
+                    }
+                }
                 // first remove any merge keys that we do not want to allow to be changed
                 // note that we could do this in the swagger also. this is to put a responsibility
                 // on this model to defend itself.
-                const permittedMergeKeys = ['homeTransactionId', 'acceptParty', 'acceptConversion', 'acceptQuote', 'acceptQuoteOrConversion', 'amount', 'to'];
+                const permittedMergeKeys = ['homeTransactionId', 'acceptParty', 'acceptConversion', 'acceptQuote', 'acceptQuoteOrConversion', 'amount', 'to', 'quoteRequestExtensions', 'transferRequestExtensions'];
                 Object.keys(mergeData).forEach(k => {
                     if(permittedMergeKeys.indexOf(k) === -1) {
                         delete mergeData[k]; // try to avoid mutation of parameters
