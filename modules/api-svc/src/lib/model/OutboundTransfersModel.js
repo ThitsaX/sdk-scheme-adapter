@@ -1327,7 +1327,7 @@ class OutboundTransfersModel {
             const modifiedData = this._modifyDataForUi(this.data);
             // save to a UI key, using a modifiedData, as we don't want any side effects to happen on original data
             // No ttl set as it will persist throughout the session
-            await this._cache.set(`transferUI_out_${this.data.transferId}`, modifiedData);
+            //await this._cache.set(`transferUI_out_${this.data.transferId}`, modifiedData);
             this._logger.isDebugEnabled && this._logger.push({ res }).debug('Persisted transfer model in cache');
         }
         catch (err) {
