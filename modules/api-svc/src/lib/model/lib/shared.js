@@ -70,6 +70,7 @@ const internalPartyToMojaloopParty = (internal, fspId, supportedCurrencies) => {
         party.personalInfo.complexName = {};
     }
 
+    if(internal.name) { party.name = internal.name; }
     if(internal.displayName) { party.name = internal.displayName; }
     if(internal.firstName) { party.personalInfo.complexName.firstName = internal.firstName; }
     if(internal.middleName) { party.personalInfo.complexName.middleName = internal.middleName; }
