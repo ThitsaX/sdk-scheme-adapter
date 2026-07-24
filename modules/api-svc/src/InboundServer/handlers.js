@@ -734,34 +734,36 @@ const putTransfersById = async (ctx) => {
 };
 
 /**
- * Handles a PATCH /transfers/{ID} from the Switch to Payee for successful transfer
- */
+* Handles a PATCH /transfers/{ID} from the Switch to Payee for successful transfer
+*/
 const patchTransfersById = async (ctx) => {
     if (ctx.state.conf.isIsoApi) {
         ctx.state.logger.isDebugEnabled && ctx.state.logger.push(ctx.request.body).debug('Transforming incoming ISO20022 patch transfers body to FSPIOP');
         const target = await TransformFacades.FSPIOPISO20022.transfers.patch({ body: ctx.request.body }, { rollUpUnmappedAsExtensions: true });
         ctx.request.body = target.body;
     }
-
+ 
     const req = {
         headers: { ...ctx.request.headers },
         data: { ...ctx.request.body }
     };
     const idValue = ctx.state.path.params.ID;
-
+ 
     // use the transfers model to execute asynchronous stages with the switch
     const model = createInboundTransfersModel(ctx);
-
-    console.log('patchTransfersById -> model', model);
-
-    // sends notification to the payee fsp
-    const response = await model.sendNotificationToPayee(req.data, idValue);
-
-    console.log('patchTransfersById -> response', response);
-
-    // log the result
-    ctx.state.logger.isDebugEnabled && ctx.state.logger.push({response}).
-        debug('Inbound transfers model handled PATCH /transfers/{ID} request');
+ 
+    // PATCH /transfers/{ID} is a one-way FSPIOP notification: the switch expects
+    // only an ack, not a response body. Fire-and-forget the payee notification so
+    // we ack immediately and process the backend notification asynchronously.
+    // sendNotificationToPayee catches its own errors internally; the Promise.resolve
+    // wrapper guarantees a thenable (the method is async in production, but may be a
+    // stubbed/mocked non-promise under test) and the .catch is a last-resort safety net.
+    Promise.resolve(model.sendNotificationToPayee(req.data, idValue))
+        .catch((err) => ctx.state.logger.isErrorEnabled && ctx.state.logger.push({ err, idValue }).
+            error('Async sendNotificationToPayee failed for PATCH /transfers/{ID}'));
+ 
+    ctx.state.logger.isDebugEnabled && ctx.state.logger.push({ idValue }).
+        debug('Inbound transfers model accepted PATCH /transfers/{ID} request for async processing');
 };
 
 /**
