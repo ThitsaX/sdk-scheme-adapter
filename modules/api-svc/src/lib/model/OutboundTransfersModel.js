@@ -465,6 +465,9 @@ class OutboundTransfersModel {
                             }
                             this.data.to.dateOfBirth = payee.personalInfo.dateOfBirth;
                         }
+                        if (payee.name) {
+                            this.data.to.name = payee.name;
+                        }
 
                         if (Array.isArray(payee.supportedCurrencies)) {
                             if (!payee.supportedCurrencies.length) {
